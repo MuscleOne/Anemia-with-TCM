@@ -1,0 +1,5 @@
+"0","compare_outcome = twogrps(df_grpcop[,-1], ""贫血幅度是否改善"")"
+"0",""
+"0","write.csv("
+"0","  compare_outcome$Table, file = ""outputs/compare_outcome.csv"", row.names = F"
+"0",")"

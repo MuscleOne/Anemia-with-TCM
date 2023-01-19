@@ -1,0 +1,5 @@
+"0","df_predictor$用药时间 = df_predictor[,c(""用药时间"")] %>% as.factor()"
+"0","df_predictor$性别 = df_predictor[,c(""性别"")] %>% as.factor()"
+"0","df_predictor$化疗有无 = df_predictor[,c(""化疗有无"")] %>% as.factor()"
+"0","df_predictor$分化程度 = df_predictor[,c(""分化程度"")] %>% factor(ordered = TRUE)"
+"0","df_predictor$贫血程度 = df_predictor[,c(""贫血程度"")] %>% factor(ordered = TRUE)"

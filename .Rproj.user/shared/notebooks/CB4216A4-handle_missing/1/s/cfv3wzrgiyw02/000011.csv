@@ -1,0 +1,23 @@
+"0","lm(outcome ~ treatment, family = ""binomial"")
+"
+"1","
+Call:
+"
+"1",""
+"1","lm(formula = outcome ~ treatment, family = ""binomial"")"
+"1",""
+"1","
+
+"
+"1","Coefficients:
+"
+"1","       (Intercept)  "
+"1","treatment小于3个月  "
+"1","
+"
+"1","            0.7568  "
+"1","           -0.5901  "
+"1","
+"
+"1","
+"

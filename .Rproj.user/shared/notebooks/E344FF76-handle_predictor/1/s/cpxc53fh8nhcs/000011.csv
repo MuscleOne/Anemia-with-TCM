@@ -1,0 +1,2 @@
+"0","df_clinical_base = raw_data[, c(""姓名"", clinical_baseline_var)]"
+"0","df_clinical_base %>% head()"

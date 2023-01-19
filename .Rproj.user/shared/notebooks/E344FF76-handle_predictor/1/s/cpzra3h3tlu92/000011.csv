@@ -1,0 +1,3 @@
+"0","twogrps(df_predictor_1[df_predictor_1$贫血程度!=0,], ""用药时间"", varlist=clinical_baseline_var)"
+"1","$Table
+"

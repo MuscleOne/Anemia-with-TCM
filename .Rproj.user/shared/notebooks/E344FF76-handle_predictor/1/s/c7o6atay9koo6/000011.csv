@@ -1,0 +1,2 @@
+"0","df_predictor_1 = merge(df_trt, df_demo) %>% merge(df_clinical_base)"
+"0","df_predictor_1 %>% head()"

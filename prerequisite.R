@@ -1,0 +1,18 @@
+# remove loaded data
+
+
+# install necessary packages
+install.packages("dplyr")
+install.packages("plotly")
+install.packages("CBCgrps")
+install.packages("networkD3")
+
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(networkD3)
+
+install.packages("devtools")
+
+# devtools::install_github("corybrunson/ggalluvial", ref = "optimization")
+# library(ggalluvial)

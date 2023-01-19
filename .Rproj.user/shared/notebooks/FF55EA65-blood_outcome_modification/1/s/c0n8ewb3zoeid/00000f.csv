@@ -1,0 +1,2 @@
+"0","hemoglobin = raw_data[, c(""姓名"", ""血红蛋白"", ""血红蛋白.1"")]"
+"0","hemoglobin %>% head(10)"

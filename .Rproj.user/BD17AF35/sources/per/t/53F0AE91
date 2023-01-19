@@ -1,0 +1,27 @@
+{
+    "id": "53F0AE91",
+    "path": "~/Desktop/2023_spring/clinical_proj/clinical_analysis/exploration/exploration.R",
+    "project_path": "exploration/exploration.R",
+    "type": "r_source",
+    "hash": "2285884830",
+    "contents": "",
+    "dirty": false,
+    "created": 1672920448718.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "29,0",
+        "scrollLine": "9"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1672983400,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1672983400807,
+    "read_only": false,
+    "read_only_alternatives": []
+}

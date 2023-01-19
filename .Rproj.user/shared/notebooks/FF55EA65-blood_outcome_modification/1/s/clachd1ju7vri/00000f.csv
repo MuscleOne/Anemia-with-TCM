@@ -1,0 +1,2 @@
+"0","raw_data = read.csv(""outputs/raw_data.csv"", encoding=""UTF-8"")"
+"0","raw_data[raw_data==""""] = NA # convert the null values to NA"

@@ -1,0 +1,2 @@
+"0","compare_demography = twogrps(df_predictor_1, ""用药时间"", varlist=demo_var)"
+"0","compare_clinical = twogrps(df_predictor_1, ""用药时间"", varlist=clinical_baseline_var)"

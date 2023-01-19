@@ -1,0 +1,27 @@
+{
+    "id": "A9D0768D",
+    "path": "~/Desktop/2023_spring/clinical_proj/clinical_analysis/prerequisite.R",
+    "project_path": "prerequisite.R",
+    "type": "r_source",
+    "hash": "3169463613",
+    "contents": "",
+    "dirty": false,
+    "created": 1672920678404.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "12,13",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1672983397,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1672983397609,
+    "read_only": false,
+    "read_only_alternatives": []
+}

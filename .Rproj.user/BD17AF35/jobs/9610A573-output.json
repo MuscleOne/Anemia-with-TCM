@@ -1,0 +1,5 @@
+[1,"** Installing R Package Dependencies for R Markdown: 'Rcpp', 'base64enc', 'digest', 'evaluate', 'glue', 'highr', 'htmltools', 'jsonlite', 'knitr', 'magrittr', 'markdown', 'mime', 'rmarkdown', 'rprojroot', 'stringi', 'stringr', 'tinytex', 'xfun', 'yaml'\n"]
+[1,"[1/28] Installing Rcpp...\n"]
+[1,"Retrieving 'https://cloud.r-project.org/src/contrib/Rcpp_1.0.9.tar.gz' ...\n"]
+[1,"\tOK [downloaded 2.8 Mb in 0.9 secs]\n"]
+[1,"Installing Rcpp [1.0.9] ...\n"]

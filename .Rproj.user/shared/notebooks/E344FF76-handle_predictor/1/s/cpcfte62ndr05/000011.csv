@@ -1,0 +1,6 @@
+"0","df_clinical_base$贫血程度 = replace(df_clinical_base$贫血程度, raw_data$贫血程度==""正常"", 0)"
+"0","df_clinical_base$贫血程度 = replace(df_clinical_base$贫血程度, raw_data$贫血程度==""轻度贫血"", 1)"
+"0","df_clinical_base$贫血程度 = replace(df_clinical_base$贫血程度, raw_data$贫血程度==""中度贫血"", 2)"
+"0","df_clinical_base$贫血程度 = replace(df_clinical_base$贫血程度, raw_data$贫血程度==""重度贫血"", 3)"
+"0","df_clinical_base$贫血程度 = replace(df_clinical_base$贫血程度, raw_data$贫血程度==""极重度贫血"", 4)"
+"0","df_clinical_base %>% head(10)"

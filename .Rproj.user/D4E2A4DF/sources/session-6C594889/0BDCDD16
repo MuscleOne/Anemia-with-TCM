@@ -1,0 +1,28 @@
+{
+    "id": "0BDCDD16",
+    "path": "D:/2023_spring/clinical_proj/clinical_analysis/handle_missing.Rmd",
+    "project_path": "handle_missing.Rmd",
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1674051508999.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "42,0",
+        "scrollLine": "24",
+        "last_setup_crc32": "6C59488989fc0644"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1674110908,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1674110908578,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,3 @@
+"0","l_outcome = readRDS(""outputs/l_outcome.rds"")"
+"0","blood_level = l_outcome[[1]]"
+"0","blood_level %>% head(10)"

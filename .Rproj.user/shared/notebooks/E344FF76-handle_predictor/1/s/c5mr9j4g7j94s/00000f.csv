@@ -1,0 +1,7 @@
+"0","# save the comparison results as csv in the outputs folder"
+"0","write.csv("
+"0","  compare_demography$Table, file = ""outputs/demo_comparison.csv"", row.names = F"
+"0",")"
+"0","write.csv("
+"0","  compare_clinical$Table, file = ""outputs/clinical_comparison.csv"", row.names = F"
+"0",")"

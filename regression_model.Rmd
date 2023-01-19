@@ -1,0 +1,201 @@
+---
+title: "regression model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+## 准备数据！
+准备作为因变量的数据
+```{r}
+l_outcome = readRDS("outputs/l_outcome.rds")
+blood_level = l_outcome[[1]]
+blood_level %>% head(10)
+```
+
+将因变量捞出来
+```{r}
+df_outcome = blood_level[, c("姓名", "贫血程度", "贫血幅度是否改善", "贫血幅度有否恶化")]
+```
+
+构造因子
+```{r}
+df_outcome$贫血幅度是否改善 = df_outcome$贫血幅度是否改善 %>% factor()
+df_outcome$贫血幅度有否恶化 = df_outcome$贫血幅度有否恶化 %>% factor()
+```
+
+准备作为自变量的数据
+```{r}
+l_predictor = readRDS("outputs/l_outcome_predictor.rds")
+df_predictor = l_predictor$df_predictor
+df_predictor_1 = l_predictor$df_predictor_1
+```
+
+将这两个表格合起来
+```{r}
+df_data_glm = merge(df_outcome, df_predictor)
+df_data_glm %>% summary
+```
+
+### 准备单因素分析的数据
+根据“贫血幅度是否改善”来做比较，因此要准备不是因子的数据框
+```{r}
+df_grpcop_respond = blood_level[, c("姓名", "贫血幅度是否改善")]
+df_grpcop_predictor = df_predictor_1
+```
+
+将两个表合并起来
+```{r}
+df_grpcop = merge(df_grpcop_respond, df_grpcop_predictor)
+df_grpcop %>% head()
+```
+
+
+## 单因素分析
+```{r}
+twogrps(df_grpcop[,-1], "贫血幅度是否改善")
+
+```
+
+单因素分析显示只有用药时间和贫血程度是显著的，没有其他的因素影响结局。
+
+```{r}
+compare_outcome = twogrps(df_grpcop[,-1], "贫血幅度是否改善")
+
+write.csv(
+  compare_outcome$Table, file = "outputs/compare_outcome.csv", row.names = F
+)
+```
+
+
+## 构建logistics回归模型！
+
+### 单因素的logistics回归模型
+首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_logistic_1 <- glm(贫血幅度是否改善 ~ 用药时间, data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_logistic_1)  #展示拟合回归的简单统计
+```
+
+
+```{r}
+logistic_coef_1 <- coef(fit_logistic_1)  #提取回归系数
+exp(logistic_coef_1)  #指数化回归系数
+```
+
+当用药时间从0到1的时候，改善的优势比达到了15.5556，这是因为很多不贫血的人（不会从0掉到-1嘛），不使用中药治疗（用药时间为0）。
+
+有两种调整方案，首先搞成非劣
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_logistic_2 <- glm(贫血幅度有否恶化 ~ 用药时间, data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_logistic_2)  #展示拟合回归的简单统计
+```
+
+
+```{r}
+logistic_coef_2 <- coef(fit_logistic_2)  #提取回归系数
+exp(logistic_coef_2)  #指数化回归系数
+```
+
+优势比降低到5.46875。
+
+把原来没有贫血的人扔掉
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_logistic_3 <- glm(贫血幅度有否恶化 ~ 用药时间, data = df_data_glm[df_data_glm["贫血程度"]!=0,], family = binomial())
+ 
+summary.glm(fit_logistic_3)  #展示拟合回归的简单统计
+```
+
+因为人数比例的问题，回归系数不显著
+```{r}
+logistic_coef_3 <- coef(fit_logistic_3)  #提取回归系数
+exp(logistic_coef_3)  #指数化回归系数
+```
+
+
+### 多因素的logistics回归模型
+把年龄和贫血程度纳入模型，变成多因素的logistics回归，暂且忽略多重共线性的影响.
+```{r}
+fit_logistic_multi_1 = 
+  glm(贫血幅度有否恶化 ~ 用药时间 + 贫血程度 + 年龄, 
+    data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_logistic_multi_1)  #展示拟合回归的简单统计
+```
+
+这，这都不显著了，说明中药不能改善贫血吗hhh
+
+```{r}
+logistic_coef_multi_1 <- coef(fit_logistic_multi_1)  #提取回归系数
+exp(logistic_coef_multi_1)  #指数化回归系数
+```
+
+将年龄拿掉看看
+```{r}
+fit_logistic_multi_2 = 
+  glm(贫血幅度有否恶化 ~ 用药时间 + 贫血程度, 
+    data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_logistic_multi_2)  #展示拟合回归的简单统计
+```
+
+更加不显著了，要是把不贫血的拿掉看看
+
+```{r}
+fit_logistic_multi_3 = 
+  glm(贫血幅度有否恶化 ~ 用药时间 + 贫血程度 + 年龄, 
+    data = df_data_glm[df_data_glm["贫血程度"]!=0,], family = binomial())
+ 
+summary.glm(fit_logistic_multi_3)  #展示拟合回归的简单统计
+```
+
+```{r}
+logistic_coef_multi_3 <- coef(fit_logistic_multi_3)  #提取回归系数
+exp(logistic_coef_multi_3)  #指数化回归系数
+```
+
+优势比达到26，不合理。
+
+
+
+
+
+
+

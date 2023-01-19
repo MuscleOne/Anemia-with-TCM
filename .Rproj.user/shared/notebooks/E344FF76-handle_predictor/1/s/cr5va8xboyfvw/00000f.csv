@@ -1,0 +1,8 @@
+"0","# determine variable list"
+"0","treatment_var = c(""用药时间"")"
+"0",""
+"0","demo_var = c(""年龄"", ""性别"", ""bmi"")"
+"0","               "
+"0","clinical_baseline_var = c(""化疗有无"", ""kps"", ""确诊部位"", ""病理类型"", ""分化程度"", ""贫血程度"") "
+"0",""
+"0","immu_baseline_var = c(""IgM"", ""CRP"")"

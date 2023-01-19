@@ -1,0 +1,17 @@
+---
+title: "handle_missing"
+author: "Chen Tianhao"
+date: "2023-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load exploaration at first, so that the data is prepared
+```{r}
+
+
+```

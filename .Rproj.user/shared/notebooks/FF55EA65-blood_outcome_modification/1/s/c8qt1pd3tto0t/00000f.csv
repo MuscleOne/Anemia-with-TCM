@@ -1,0 +1,6 @@
+"0",""
+"0","blood_outcome = raw_data[,c(""姓名"",""是否贫血"",""是否贫血.1"")]"
+"0",""
+"0","blood_outcome$是否贫血 = ifelse(raw_data$是否贫血==""有"", 1, 0)   "
+"0","blood_outcome$是否贫血.1 = ifelse(raw_data$是否贫血.1==""有"", 1, 0)   "
+"0",""
