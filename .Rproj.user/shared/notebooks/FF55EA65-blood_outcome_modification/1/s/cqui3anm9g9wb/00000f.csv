@@ -1,6 +1,0 @@
-"0","blood_level$贫血程度.1 = replace(blood_level$贫血程度.1, raw_data$贫血程度.1==""正常"", 0)"
-"0","blood_level$贫血程度.1 = replace(blood_level$贫血程度.1, raw_data$贫血程度.1==""轻度"", 1)"
-"0","blood_level$贫血程度.1 = replace(blood_level$贫血程度.1, raw_data$贫血程度.1==""中度"", 2)"
-"0","blood_level$贫血程度.1 = replace(blood_level$贫血程度.1, raw_data$贫血程度.1==""重度"", 3)"
-"0","blood_level$贫血程度.1 = replace(blood_level$贫血程度.1, raw_data$贫血程度.1==""极重度"", 4)"
-"0","blood_level %>% head(10)"

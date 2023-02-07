@@ -1,3 +1,0 @@
-"0","l_predictor = readRDS(""outputs/l_outcome_predictor.rds"")"
-"0","df_predictor = l_predictor$df_predictor"
-"0","df_predictor_1 = l_predictor$df_predictor_1"

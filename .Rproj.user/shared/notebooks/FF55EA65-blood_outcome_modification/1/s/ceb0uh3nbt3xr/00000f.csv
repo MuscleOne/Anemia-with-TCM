@@ -1,5 +1,4 @@
-"0","blood_outcome$贫血没有恶化 %>% table()
-"
+"0","blood_outcome$贫血没有恶化 %>% table()"
 "1",".
 "
 "1","  0 "

@@ -1,2 +1,0 @@
-"0","blood_level = raw_data[,c(""姓名"",""贫血程度"",""贫血程度.1"")]"
-"0","blood_level %>% head()"

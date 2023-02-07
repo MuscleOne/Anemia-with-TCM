@@ -1,2 +1,0 @@
-"0","df_outcome$贫血幅度是否改善 = df_outcome$贫血幅度是否改善 %>% factor()"
-"0","df_outcome$贫血幅度有否恶化 = df_outcome$贫血幅度有否恶化 %>% factor()"

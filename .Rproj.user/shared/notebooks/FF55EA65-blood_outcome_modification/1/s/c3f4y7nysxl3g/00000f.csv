@@ -1,4 +1,0 @@
-"0","l_outcome = list(blood_level, blood_outcome, hemoglobin)"
-"0",""
-"0","# Save an object to a file"
-"0","saveRDS(l_outcome, file = ""outputs/l_outcome.rds"")"

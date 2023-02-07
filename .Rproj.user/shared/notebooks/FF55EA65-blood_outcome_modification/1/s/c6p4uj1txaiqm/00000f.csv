@@ -1,4 +1,0 @@
-"0","# 贫血幅度是否改善"
-"0","blood_level$贫血幅度是否改善 = ifelse(blood_level$贫血改善幅度>0, 1, 0)"
-"0","blood_level$贫血幅度有否恶化 = ifelse(blood_level$贫血改善幅度<0, 0, 1)"
-"0","blood_level %>% head(10)"

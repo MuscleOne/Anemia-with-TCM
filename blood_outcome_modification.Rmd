@@ -120,7 +120,7 @@ blood_level$贫血改善幅度 %>% table()
 ```{r}
 # 贫血幅度是否改善
 blood_level$贫血幅度是否改善 = ifelse(blood_level$贫血改善幅度>0, 1, 0)
-blood_level$贫血幅度有否恶化 = ifelse(blood_level$贫血改善幅度<0, 0, 1)
+blood_level$贫血幅度有否恶化 = ifelse(blood_level$贫血改善幅度>=0, 1, 0)
 blood_level %>% head(10)
 ```
 
@@ -152,7 +152,7 @@ hemoglobin %>% head(10)
 
 ```{r}
 hemoglobin$血红蛋白数值变化 = hemoglobin$血红蛋白.1 - hemoglobin$血红蛋白
-hemoglobin$血红蛋白是否改善 = ifelse(hemoglobin$血红蛋白.1 > hemoglobin$血红蛋白, 1, 0)
+hemoglobin$血红蛋白是否改善 = ifelse(hemoglobin$血红蛋白.1 > hemoglobin$血红蛋白+10, 1, 0)
 
 hemoglobin %>% head(20)
 ```
@@ -169,6 +169,30 @@ hemoglobin$血红蛋白是否改善 %>% table()
 ```
 
 
+考察血红蛋白上升10g以上的人, 可视化一下
+```{r}
+hemoglobin[hemoglobin$血红蛋白数值变化>10,"血红蛋白数值变化"] %>% boxplot()
+```
+
+```{r}
+hemoglobin[hemoglobin$血红蛋白数值变化>10,"血红蛋白数值变化"] %>% hist()
+```
+
+有多少人呢，算一下有70人，然后要减掉13个NA，那么，只有57人
+```{r}
+hemoglobin[hemoglobin$血红蛋白数值变化>10,"血红蛋白数值变化"] %>% length()
+```
+
+### 选择终点变量
+
+先将所有的表格merge起来
+```{r}
+df_outcome_value = merge(blood_level[,c(1,5)], hemoglobin[,c(1,4,5)])
+df_outcome_value %>% head()
+```
+
+
+
 ### 总结：选择贫血程度来作为终点变量
 
 为什么呢？考察二分类贫血与否的判断，从贫血到不贫血的只有34人，显得我们的治疗没有作用。
@@ -182,7 +206,7 @@ hemoglobin$血红蛋白是否改善 %>% table()
 ## 将处理后的表格合并并且保存
 
 ```{r}
-l_outcome = list(blood_level, blood_outcome, hemoglobin)
+l_outcome = list(blood_level, blood_outcome, hemoglobin, df_outcome_value)
 
 # Save an object to a file
 saveRDS(l_outcome, file = "outputs/l_outcome.rds")

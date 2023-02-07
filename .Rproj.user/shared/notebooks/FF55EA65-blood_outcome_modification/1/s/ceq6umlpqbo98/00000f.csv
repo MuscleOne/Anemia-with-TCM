@@ -1,4 +1,0 @@
-"0","hemoglobin$血红蛋白数值变化 = hemoglobin$血红蛋白.1 - hemoglobin$血红蛋白"
-"0","hemoglobin$血红蛋白是否改善 = ifelse(hemoglobin$血红蛋白.1 > hemoglobin$血红蛋白, 1, 0)"
-"0",""
-"0","hemoglobin %>% head(20)"

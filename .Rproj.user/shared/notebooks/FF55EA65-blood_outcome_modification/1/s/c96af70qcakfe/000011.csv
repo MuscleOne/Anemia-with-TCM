@@ -1,4 +1,0 @@
-"0","# blood_outcome[""是否贫血变化""] = blood_outcome$是否贫血 - blood_outcome$是否贫血.1"
-"0","blood_outcome$贫血情况好转 = ifelse((blood_outcome$是否贫血 - blood_outcome$是否贫血.1)>0, 1, 0)"
-"0","blood_outcome$贫血没有恶化 = ifelse((blood_outcome$是否贫血 - blood_outcome$是否贫血.1)<0, 0, 1)"
-"0","blood_outcome %>% head(10)"
