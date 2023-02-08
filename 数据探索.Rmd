@@ -1,0 +1,385 @@
+---
+title: "研究1: "
+output: html_document
+date: "2023-02-06"
+---
+
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+
+# 读入处理好的原始数据
+```{r}
+l_data_grpcop_glm = readRDS("outputs/l_dat_grpcop_glm.rds")
+df_data_glm = l_data_grpcop_glm$df_data_glm
+df_grpcop = l_data_grpcop_glm$df_grpcop
+```
+
+
+# 数据探索
+
+## 第一阶段: 先考察原始数据的pattern和两两对应的图
+
+每个变量都画分布图
+```{r}
+# 引入函数
+source("exploration/plot_items_pattern.R")
+```
+
+```{r}
+df_data_glm %>% dim()
+```
+
+画一下数据分布
+```{r}
+par(mfrow=c(3,3))
+plot_items_pattern(df_data_glm[,-1])
+```
+
+可以看到有很多变量是严重有偏的, 不适合直接扔进去, 把这些变量记下来, 然后mch有个离群值. 
+```{r}
+df_data_glm %>% colnames()
+```
+
+先把mch的离群值拿走
+```{r}
+# 第108个
+df_data_glm[-c(108), "mch"] %>% log() %>% plot()
+```
+
+```{r}
+df_data_glm = df_data_glm[-c(108), ]
+df_grpcop = df_grpcop[-c(108), ]
+```
+
+把有偏的数据变量, 捞出来
+```{r}
+var_skewed = c("IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1", "mch", "mchc", "mch.1", "mchc.1")
+```
+
+看一下用来两两比较的数据框
+```{r}
+par(mfrow=c(3,3))
+df_grpcop[, -1] %>% plot_items_pattern
+```
+
+画一下原始数据的两两关系
+```{r}
+# 把非数值的结果搞走
+var_chr = c("姓名", "确诊部位", "病理类型")
+chart.Correlation(df_grpcop[, !(colnames(df_grpcop) %in% var_chr)], histogram = TRUE, method = "pearson")
+```
+
+
+## 第二阶段: 做log转换尔后画pattern和两两对应的图
+处理用于glm的数据
+```{r}
+df_data_glm[, colnames(df_data_glm) %in% var_skewed] = 
+  df_data_glm[, colnames(df_data_glm) %in% var_skewed] %>% log()
+```
+
+处理用于两两比较的数据
+```{r}
+df_grpcop[, colnames(df_grpcop) %in% var_skewed] = 
+  df_grpcop[, colnames(df_grpcop) %in% var_skewed] %>% log()
+```
+
+先画patterns
+```{r}
+par(mfrow=c(3,3))
+df_data_glm[, -1] %>% plot_items_pattern()
+```
+
+
+```{r}
+chart.Correlation(df_grpcop[, !(colnames(df_grpcop) %in% var_chr)], histogram = TRUE, method = "pearson")
+```
+
+# 基线数据比较
+比较改善与否的人, 他们的predictor是否有差异
+```{r}
+# compare_hemoglobin
+compare_hemoglobin = twogrps(df_grpcop[,-1], "血红蛋白是否改善")
+compare_hemoglobin$Table %>% print()
+# 
+
+write.csv(compare_hemoglobin$table, "outputs/compare_hemoglobin.csv")
+```
+
+
+考虑以0.2为阈值, "用药时间", "年龄", "bmi", "确诊部位", "贫血程度", "IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "mchc"进行单因素分析. 
+
+# 单因素分析
+
+## "血红蛋白是否改善" 与 "用药时间"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与用药 = glm(血红蛋白是否改善 ~ 用药时间, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与用药)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与用药 %>% coef %>% exp() %>% print()
+fit_血红蛋白与用药 %>% confint() %>% exp() %>% print()
+```
+
+```{r}
+fit_血红蛋白与用药_coef = fit_血红蛋白与用药 %>% coef 
+
+
+# 预测
+#predict() 默认输出肿瘤为恶性的对数概率
+#指定参数 type='response' 即可得到预测肿瘤为恶性的概率
+prob = predict(fit_血红蛋白与用药, df_data_glm, type = 'response')
+head(prob)
+
+```
+
+<!-- 可视化 -->
+<!-- ```{r} -->
+<!-- #一元 logistic 回归的散点图 -->
+<!-- library(arm) -->
+
+<!-- plot(jitter(血红蛋白是否改善, factor = 0)~用药时间, data = df_data_glm,  -->
+<!--     type = 'n', xlab = '用药时间',  -->
+<!--     ylab = 'probability（血红蛋白是否改善）') -->
+<!-- points(jitter(血红蛋白是否改善, factor = 0.3)~用药时间, data = df_data_glm,  -->
+<!--     col = '#00000022', pch = 20) -->
+<!-- points(df_data_glm$用药时间, prob, pch = 20, col = 'red') -->
+<!-- # curve(invlogit(fit_血红蛋白与用药_coef[1] + fit_血红蛋白与用药_coef[2] * df_data_glm$用药时间), add = TRUE, col = 'red') -->
+
+<!-- ``` -->
+
+## "血红蛋白是否改善" 与 "年龄"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与年龄 = glm(血红蛋白是否改善 ~ 年龄, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与年龄)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与年龄 %>% coef %>% exp() %>% print()
+fit_血红蛋白与年龄 %>% confint() %>% exp() %>% print()
+```
+
+
+## "血红蛋白是否改善" 与 "bmi"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与bmi = glm(血红蛋白是否改善 ~ bmi, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与bmi)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与bmi %>% coef %>% exp() %>% print()
+fit_血红蛋白与bmi %>% confint() %>% exp() %>% print()
+```
+
+
+## "血红蛋白是否改善" 与 "确诊部位"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与确诊部位 = glm(血红蛋白是否改善 ~ 确诊部位, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与确诊部位)  #展示拟合回归的简单统计
+```
+
+回归系数不显著, 不纳入多因素分析
+
+## "血红蛋白是否改善" 与 "贫血程度"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与贫血程度 = glm(血红蛋白是否改善 ~ 贫血程度, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与贫血程度)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与贫血程度 %>% coef %>% exp() %>% print()
+fit_血红蛋白与贫血程度 %>% confint() %>% exp() %>% print()
+```
+
+
+## "血红蛋白是否改善" 与 "IL.6.0.7pg.ml."
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与IL.6.0.7pg.ml. = glm(血红蛋白是否改善 ~ IL.6.0.7pg.ml., data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与IL.6.0.7pg.ml.)  #展示拟合回归的简单统计
+```
+
+并不是显著的, 不纳入多因素分析
+
+
+## "血红蛋白是否改善" 与 "CRP"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与CRP = glm(血红蛋白是否改善 ~ CRP, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与CRP)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与CRP %>% coef %>% exp() %>% print()
+fit_血红蛋白与CRP %>% confint() %>% exp() %>% print()
+```
+
+
+## "血红蛋白是否改善" 与 "淋巴细胞绝对值"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与淋巴细胞绝对值 = glm(血红蛋白是否改善 ~ 淋巴细胞绝对值, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与淋巴细胞绝对值)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与淋巴细胞绝对值 %>% coef %>% exp() %>% print()
+fit_血红蛋白与淋巴细胞绝对值 %>% confint() %>% exp() %>% print()
+```
+
+ 
+
+## "血红蛋白是否改善" 与 "mchc"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与mchc = glm(血红蛋白是否改善 ~ mchc, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与mchc)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_血红蛋白与mchc %>% coef %>% exp() %>% print()
+fit_血红蛋白与mchc %>% confint() %>% exp() %>% print()
+```
+
+单因素分析结果显示,  "用药时间", "年龄", "bmi", "贫血程度", "CRP", "淋巴细胞绝对值", "mchc"可以放入多因素分析. 
+
+## 多因素分析
+
+留意到贫血程度和用药时间有交互, 因此, 首先是没交互的, 尔后搞个有交互的
+
+### 没交互的多因素模型
+```{r}
+fit_多因素_1 = 
+  glm(血红蛋白是否改善 ~ 用药时间 + 年龄 + bmi + 贫血程度 + CRP + 淋巴细胞绝对值 + mchc, 
+    data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_多因素_1)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_多因素_1 %>% coef %>% exp() %>% print()
+fit_多因素_1 %>% confint() %>% exp() %>% print()
+```
+
+
+
+### 用药时间和贫血程度交互的多因素模型
+```{r}
+fit_多因素_2 = 
+  glm(血红蛋白是否改善 ~ 用药时间 * 贫血程度  + 年龄 + bmi + CRP + 淋巴细胞绝对值 + mchc, 
+    data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_多因素_2)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_多因素_2 %>% coef %>% exp() %>% print()
+fit_多因素_2 %>% confint() %>% exp() %>% print()
+```
+
+## 随机森林模型
+
+把na拿掉
+```{r}
+df_data_rf = df_data_glm[!(is.na(df_data_glm[, '血红蛋白是否改善'])), ]
+
+```
+
+```{r}
+##randomForest 包的随机森林
+library(randomForest)
+ 
+#随机森林计算（默认生成 500 棵决策树），详情 ?randomForest
+set.seed(123)
+otu_train.forest <- randomForest(血红蛋白是否改善 ~ 用药时间 + 年龄 + bmi + 贫血程度 + CRP + 淋巴细胞绝对值 + mchc, data = df_data_rf, importance = TRUE)
+otu_train.forest
+```
+
+
+```{r}
+importance_otu <- otu_train.forest$importance
+head(importance_otu)
+
+```
+
+
+```{r}
+#随机森林计算（默认生成 500 棵决策树），详情 ?randomForest
+set.seed(123)
+otu_train.forest_1 = randomForest(血红蛋白是否改善 ~ ., data = df_data_rf, importance = TRUE)
+otu_train.forest_1
+```
+
+
+
+

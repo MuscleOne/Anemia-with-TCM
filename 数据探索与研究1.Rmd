@@ -1,0 +1,373 @@
+---
+title: "数据探索与研究1"
+date: "2023-02-07"
+output: html_document
+---
+
+
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+
+##randomForest 包的随机森林
+library(randomForest)
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+
+# 读入处理好的原始数据
+```{r}
+l_data_grpcop_glm = readRDS("outputs/l_dat_grpcop_glm.rds")
+df_data_glm = l_data_grpcop_glm$df_data_glm
+df_grpcop = l_data_grpcop_glm$df_grpcop
+```
+
+
+# 数据探索
+
+## 第零阶段: 操作变量, 加入一些列
+
+加入中性粒细胞绝对值/淋巴细胞绝对值
+```{r}
+df_细胞比例 = raw_data[, c("姓名", "中性粒细胞绝对值", "淋巴细胞绝对值", "中性粒细胞绝对值.1", "淋巴细胞绝对值.1" )]
+df_细胞比例[, "中性粒.淋巴"] = df_细胞比例[, "中性粒细胞绝对值"]/df_细胞比例[, "淋巴细胞绝对值"]
+df_细胞比例[, "中性粒.淋巴.1"] = df_细胞比例[, "中性粒细胞绝对值.1"]/df_细胞比例[, "淋巴细胞绝对值.1"]
+
+df_细胞比例 %>% head()
+```
+
+操作终点变量, 得到上升值的分位数
+```{r}
+df_血红蛋白 = raw_data[, c("姓名", "血红蛋白", "血红蛋白.1")]
+df_血红蛋白[, "血红蛋白变化值"] =  raw_data[, "血红蛋白.1"] - raw_data[, "血红蛋白"]
+df_血红蛋白 %>% head()
+```
+
+做成一个数据补充的表格, merge入用于单因素分析和回归的表格中
+```{r}
+# df_数据补充 = merge(df_血红蛋白, df_细胞比例)
+df_grpcop = merge(df_血红蛋白, df_grpcop) %>% merge(df_细胞比例)
+df_data_glm = merge(df_血红蛋白, df_data_glm) %>% merge(df_细胞比例)
+```
+
+## 第一阶段: 先考察原始数据的pattern和两两对应的图
+
+每个变量都画分布图
+```{r}
+# 引入函数
+source("exploration/plot_items_pattern.R")
+```
+
+```{r}
+df_data_glm %>% dim()
+```
+
+画一下数据分布
+```{r}
+par(mfrow=c(3,3))
+plot_items_pattern(df_data_glm[,-1])
+```
+
+可以看到有很多变量是严重有偏的, 不适合直接扔进去, 把这些变量记下来, 然后mch有个离群值. 
+```{r}
+df_data_glm %>% colnames()
+```
+
+先把mch的离群值拿走
+```{r}
+# 第94个, 不是第108个
+df_data_glm[-c(94), "mch"] %>% log() %>% plot()
+```
+
+```{r}
+df_data_glm = df_data_glm[-c(94), ]
+df_grpcop = df_grpcop[-c(94), ]
+```
+
+把有偏的数据变量, 捞出来
+```{r}
+var_skewed = c("IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1", "mch", "mchc", "mch.1", "mchc.1", "中性粒细胞绝对值", "中性粒细胞绝对值.1", "中性粒.淋巴", "中性粒.淋巴.1" )
+```
+
+看一下用来两两比较的数据框
+```{r}
+par(mfrow=c(3,3))
+df_grpcop[, -1] %>% plot_items_pattern
+```
+
+画一下原始数据的两两关系
+```{r}
+# 把非数值的结果搞走
+var_chr = c("姓名", "确诊部位", "病理类型")
+chart.Correlation(df_grpcop[, !(colnames(df_grpcop) %in% var_chr)], histogram = TRUE, method = "pearson")
+```
+
+
+## 第二阶段: 做log转换尔后画pattern和两两对应的图
+处理用于glm的数据
+```{r}
+df_data_glm[, colnames(df_data_glm) %in% var_skewed] = 
+  df_data_glm[, colnames(df_data_glm) %in% var_skewed] %>% log()
+```
+
+处理用于两两比较的数据
+```{r}
+df_grpcop[, colnames(df_grpcop) %in% var_skewed] = 
+  df_grpcop[, colnames(df_grpcop) %in% var_skewed] %>% log()
+```
+
+先画patterns
+```{r}
+par(mfrow=c(3,3))
+df_data_glm[, -1] %>% plot_items_pattern()
+```
+
+
+```{r}
+chart.Correlation(df_grpcop[, !(colnames(df_grpcop) %in% var_chr)], histogram = TRUE, method = "pearson")
+```
+
+# 基线数据比较
+比较改善与否的人, 他们的predictor是否有差异
+```{r}
+# compare_hemoglobin
+compare_hemoglobin = twogrps(df_grpcop[,-1], "血红蛋白是否改善")
+compare_hemoglobin$Table %>% print()
+# 
+
+write.csv(compare_hemoglobin$table, "outputs/compare_hemoglobin.csv")
+```
+
+
+考虑以0.2为阈值, "用药时间", "年龄", "bmi", "确诊部位", "血红蛋白", "IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "中性粒细胞绝对值", "中性粒.淋巴", "mchc", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1", "中性粒细胞绝对值.1", "中性粒.淋巴.1", "mchc.1"进行单因素分析. 
+
+# 单因素分析
+
+## 单因素分析的一个具体案例: "血红蛋白是否改善" 与 "用药时间"
+```{r}
+#首先展示是否使用中药和贫血是否改善的一元 logistic 回归示例
+#通过广义线性回归函数 glm() 执行 logistic 回归，详情 ?glm
+#通过 family 参数指定了二项回归，即二分响应的 logistic 回归
+fit_血红蛋白与用药 = glm(血红蛋白是否改善 ~ 用药时间, data = df_data_glm, family = binomial())
+
+summary.glm(fit_血红蛋白与用药)  #展示拟合回归的简单统计
+```
+
+<!-- 回归系数作为比率比给出 -->
+<!-- ```{r} -->
+<!-- fit_血红蛋白与用药 %>% coef %>% exp() %>% print() -->
+<!-- fit_血红蛋白与用药 %>% confint() %>% exp() %>% print() -->
+<!-- ``` -->
+
+为了将回归系数作为比率比给出, 
+
+<!-- ```{r} -->
+<!-- # 读取估计值和p值, 还有估计区间 -->
+<!-- vec_估计值和p = coefficients(summary.glm(fit_血红蛋白与用药))[2, c(1,4)] -->
+<!-- #     Estimate     Pr(>|z|)  -->
+<!-- # 2.389596e+00 1.618502e-05  -->
+
+<!-- vec_区间 = confint(fit_血红蛋白与用药)[2,] -->
+<!-- #    2.5 %   97.5 %  -->
+<!-- # 1.371603 3.579447  -->
+
+<!-- # 将读取的数字都merge起来, 并对估计量做exp运算 -->
+<!-- vec_系数估计 = c(vec_估计值和p[1], vec_区间, vec_估计值和p[2]) -->
+<!-- vec_系数估计[1:3] = vec_系数估计[1:3] %>% exp() -->
+
+<!-- vec_系数估计 = vec_系数估计 %>% format(scientific = FALSE, digits = 1) %>% as.numeric() -->
+<!-- ``` -->
+
+需要写一个读取的辅助函数
+```{r}
+
+get_glm_OR = function(fit_single_model, row_var=2) {
+  # 参数: 
+  # fit_single_model: glm模型
+  # row_var: 第几个回归变量, 1为截距, 再单因素分析里面, 2为需要分析的因素
+  # 返回: 
+  # 一个vector, 有四个列, 第一列OR的点估计, 第二列是区间下限(2.5%), 第三列是
+  # 区间上限(97,5%), 第四列是p值
+  vec_coef_p = coefficients(summary.glm(fit_single_model))[row_var, c(1,4)]
+  vec_cofint = confint(fit_single_model)[row_var,] 
+  vec_est = c(vec_coef_p[1], vec_cofint, vec_coef_p[2])
+  vec_est[1:3] = exp(vec_est[1:3])
+  # vec_est = format(vec_est, scientific = FALSE, digits = 1)
+  # vec_est = as.numeric(vec_est)
+  return(vec_est)
+}
+
+# debug
+vec_用药 = get_glm_OR(fit_血红蛋白与用药)
+vec_用药 %>% print()
+```
+
+## for循环得到17个模型
+尝试写一个for循环来解决问题
+```{r}
+var_单因素 = c("用药时间", "年龄", "bmi", "血红蛋白", "IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "中性粒细胞绝对值", "中性粒.淋巴", "mchc", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1", "中性粒细胞绝对值.1", "中性粒.淋巴.1", "mchc.1")
+```
+
+```{r}
+df_data_glm[, var_单因素] %>% head()
+```
+
+```{r}
+# lapply(1:30, function(i) glm(as.formula(paste0('casecontrol ~ ', 'rs', i)), data = mydata, family = binomial))
+
+l_单因素回归 = 
+  lapply(var_单因素, 
+         function(i) glm(as.formula(paste('血红蛋白是否改善 ~ ', i)), data = df_data_glm, family = binomial))
+```
+
+读取并保存单因素回归结果的OR点估计和区间估计, 还有p值
+```{r}
+result_OR_name = c("OR", "2.5 %", "97.5 %", "Pr(>|z|)")
+result_OR = vector()
+
+for (j in 1:length(var_单因素)) {
+  result_OR = rbind(result_OR, get_glm_OR(l_单因素回归[[j]]))
+}
+
+rownames(result_OR) = var_单因素
+result_OR %>% as.data.frame() %>% print()
+
+```
+
+把结果保存下来
+```{r}
+write.csv(result_OR, "outputs/result_OR.csv")
+```
+
+以0.25为阈值找出纳入多因素分析的变量
+```{r}
+rownames(result_OR)[result_OR[, 4]<0.25]
+```
+
+单因素分析结果显示,  "用药时间", "年龄", "bmi", "血红蛋白", "CRP", "CRP.1", "淋巴细胞绝对值",  "中性粒细胞绝对值",  "mchc"和 "mchc.1"可以放入多因素分析. 
+
+## 多因素分析
+
+留意到贫血程度和用药时间有交互, 因此, 首先是没交互的, 尔后搞个有交互的
+
+### 没交互的多因素模型
+```{r}
+fit_多因素_1 = 
+  glm(血红蛋白是否改善 ~ 用药时间 + 年龄 + bmi + 血红蛋白 + CRP + 淋巴细胞绝对值 + mchc, 
+    data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_多因素_1)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_多因素_1 %>% coef %>% exp() %>% print()
+fit_多因素_1 %>% confint() %>% exp() %>% print()
+```
+
+
+
+### 用药时间和贫血程度交互的多因素模型
+```{r}
+fit_多因素_2 = 
+  glm(血红蛋白是否改善 ~ 用药时间 * 血红蛋白 + 年龄 + bmi + CRP + 淋巴细胞绝对值 + mchc, 
+    data = df_data_glm, family = binomial())
+ 
+summary.glm(fit_多因素_2)  #展示拟合回归的简单统计
+```
+
+回归系数作为比率比给出
+```{r}
+fit_多因素_2 %>% coef %>% exp() %>% print()
+fit_多因素_2 %>% confint() %>% exp() %>% print()
+```
+
+## 随机森林模型
+
+把na拿掉
+```{r}
+df_data_rf = df_data_glm[!(is.na(df_data_glm[, '血红蛋白是否改善'])), ]
+
+```
+
+```{r}
+#随机森林计算（默认生成 500 棵决策树），详情 ?randomForest
+set.seed(123)
+rf_多因素 = 
+  randomForest(血红蛋白是否改善 ~ 用药时间 + 年龄 + bmi + 血红蛋白 + CRP + 淋巴细胞绝对值 + mchc, data = df_data_rf, importance = TRUE)
+
+rf_多因素
+```
+
+
+```{r}
+importance_rf_多因素 = rf_多因素$importance
+head(importance_rf_多因素)
+```
+
+
+```{r}
+varImpPlot(rf_多因素, n.var = min(7, nrow(rf_多因素$importance)),
+    main = 'Top 7 - variable importance')
+```
+
+## 混合效应模型
+
+有两个重复测量的结果, 即CRP和mchc, 考虑引入混合效应模型. 
+
+基线的数据是固定效应, CRP和mchc有随机效应
+
+```{r}
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

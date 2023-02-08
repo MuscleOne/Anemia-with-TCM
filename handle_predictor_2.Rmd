@@ -1,0 +1,212 @@
+---
+title: "handle predictor 2"
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r, }
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+## 把关心的变量拉出来
+关心的变量包括IL6，CRP，淋巴细胞三个，还有mcv, mvh, mchc。
+```{r}
+raw_data %>% names()
+```
+
+把免疫的相关变量搞出来
+```{r}
+df_immu = raw_data[,c("姓名", "IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1")]
+df_immu %>% head()
+```
+
+处理CPR, 将小于一的变量替换掉. 
+```{r}
+df_immu[(df_immu$CRP=="<1") & !is.na(df_immu$CRP), "CRP"] = 1
+df_immu[(df_immu$CRP.1=="<1") & !is.na(df_immu$CRP.1), "CRP.1"] = 1 
+df_immu[(df_immu$CRP.1=="＜1") & !is.na(df_immu$CRP.1), "CRP.1"] = 1 # 有个全角的
+```
+
+好, 将替换后的结果转化为数值
+```{r}
+df_immu[, "CRP"] = df_immu[, "CRP"] %>% as.numeric
+df_immu[, "CRP.1"] = df_immu[, "CRP.1"] %>% as.numeric
+```
+
+看看替换后的结果如何
+```{r}
+print(df_immu[, c("CRP", "CRP.1")])
+```
+
+
+### 统计缺失值
+```{r}
+# 统计每一列的缺失值
+apply(is.na(df_immu), 2, sum) %>% data.frame() %>% t
+```
+
+
+把红细胞的相关参数搞出来
+```{r}
+df_redcell_par = raw_data[,c("姓名", "mcv", "mch", "mchc", "mcv.1", "mch.1", "mchc.1")]
+df_redcell_par %>% head()
+```
+
+留意到mch是char, 因此, 将它转化为numerical
+```{r}
+df_redcell_par$mch = 
+  df_redcell_par$mch %>% as.numeric()
+df_redcell_par %>% head()
+```
+
+
+```{r}
+# 统计每一列的缺失值
+apply(is.na(df_redcell_par), 2, sum) %>% data.frame() %>% t
+```
+
+
+## 处理缺失值，生成虚假的数据
+用来生成虚假数据的变量包括预测值，还有自变量
+```{r}
+# 读入预测值
+l_predictor = readRDS("outputs/l_outcome_predictor.rds")
+df_predictor = l_predictor$df_predictor
+df_predictor_1 = l_predictor$df_predictor_1
+
+# 读入因变量值
+l_outcome = readRDS("outputs/l_outcome.rds")
+blood_value = l_outcome[[4]]
+blood_value %>% head(10)
+
+
+# 合并自变量和因变量
+df_evidence = merge(df_predictor, blood_value)
+df_evidence %>% head()
+```
+
+### 先硬着头皮填补
+```{r}
+# 选择适合填补的，关于生理的数据
+library(mice)
+```
+
+缺失的和不缺失的数据都搞上去
+```{r}
+df_join = merge(df_evidence, df_immu) %>% merge(df_redcell_par)
+df_join %>% names()
+```
+
+硬着头皮先填
+```{r}
+md.pattern(df_join)
+```
+
+```{r}
+# multiple impute the missing values
+imp_1 = mice(df_join, maxit = 10, m = 2, seed = 1, meth = "rf")
+
+# 考察插补的结果
+imp_1$imp$IL.6.0.7pg.ml.$`1`
+```
+
+
+有个离群值, 5000, 影响非常大
+```{r}
+df_join$IL.6.0.7pg.ml. %>% summary()
+```
+
+考察CPR的填补结果
+```{r}
+imp_1$imp$CRP[,1]
+```
+
+看看没填补的
+```{r}
+df_join$CRP
+```
+
+### 将填补的结果搞出来
+将填补的结果写道一个数据框里面
+```{r}
+dim(df_join)
+
+ver_imp = c("IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1", "mcv", "mch", "mchc", "mcv.1", "mch.1", "mchc.1")
+# imp_1$imp %>% str()
+```
+
+<!-- 写一个循环读取数据吧, 作为一个自动化的脚本 -->
+<!-- ```{r} -->
+<!-- df_join_imp = df_join -->
+
+<!-- for (i in ver_imp) { -->
+<!--   df_imp_i = imp_1$imp[[i]][1] -->
+<!--   if(dim(df_imp_i)[1]!=0) { -->
+<!--     df_imp_i %>% print() -->
+<!--     for (j in row.names(df_imp_i)) { -->
+<!--       df_join_imp[as.numeric(j), i] = df_imp_i[j, ] -->
+<!--     } -->
+<!--   } -->
+<!-- } -->
+<!-- ``` -->
+
+```{r}
+df_join_imp = complete(imp_1, action = 2)
+df_join_imp %>% head(20)
+```
+
+
+```{r}
+df_join_imp %>% head(20)
+```
+
+### 用mice输出
+
+
+## 将填补完的数据保存成列表
+```{r}
+# ver_imp = c("IL.6.0.7pg.ml.", "CRP", "淋巴细胞绝对值", "IL.6.0.7pg.ml..1", "CRP.1", "淋巴细胞绝对值.1", "mcv", "mch", "mchc", "mcv.1", "mch.1", "mchc.1")
+
+l_imp = list(
+  ver_imp = ver_imp, 
+  df_join = df_join, 
+  df_join_imp = df_join_imp
+)
+
+```
+
+保存成文件
+```{r}
+# Save an object to a file
+saveRDS(l_imp, file = "outputs/l_imp.rds")
+```
+
+
+
+
+
+
+
