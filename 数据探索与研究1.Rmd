@@ -127,6 +127,22 @@ var_chr = c("姓名", "确诊部位", "病理类型")
 chart.Correlation(df_grpcop[, !(colnames(df_grpcop) %in% var_chr)], histogram = TRUE, method = "pearson")
 ```
 
+# 第一阶段的原始数据保存下来
+```{r}
+# df_data_glm %>% str()
+
+l_data_analysis_raw = 
+  list(
+    var_skewed = var_skewed, 
+    df_data_glm = df_data_glm, 
+    df_grpcop = df_grpcop
+  )
+
+saveRDS(l_data_analysis_raw, "outputs/l_data_analysis_raw.rds")
+```
+
+
+
 
 ## 第二阶段: 做log转换尔后画pattern和两两对应的图
 处理用于glm的数据
@@ -160,7 +176,7 @@ compare_hemoglobin = twogrps(df_grpcop[,-1], "血红蛋白是否改善")
 compare_hemoglobin$Table %>% print()
 # 
 
-write.csv(compare_hemoglobin$table, "outputs/compare_hemoglobin.csv")
+write.csv(compare_hemoglobin$Table, "outputs/compare_hemoglobin.csv")
 ```
 
 
@@ -237,6 +253,13 @@ var_单因素 = c("用药时间", "年龄", "bmi", "血红蛋白", "IL.6.0.7pg.m
 df_data_glm[, var_单因素] %>% head()
 ```
 
+
+<!-- ```{r} -->
+<!-- length(var_单因素) -->
+<!-- var_单因素[6] -->
+<!-- ``` -->
+
+
 ```{r}
 # lapply(1:30, function(i) glm(as.formula(paste0('casecontrol ~ ', 'rs', i)), data = mydata, family = binomial))
 
@@ -273,13 +296,23 @@ rownames(result_OR)[result_OR[, 4]<0.25]
 
 ## 多因素分析
 
-留意到贫血程度和用药时间有交互, 因此, 首先是没交互的, 尔后搞个有交互的
+留意到贫血程度和用药时间有较强相关关系, 因此, 假设他们有交互作用，首先构建一个没交互的模型, 尔后搞个有交互的
+
+血红蛋白跑出来的系数是负的, 我觉得是被没有贫血的人干扰了. 但是使用全部都是贫血的样本, 会导致一个显著的结果都没有, 而且只有65个样本了, 可能也失去了下降的样本. 
+因此还是使用等级吧, 即"贫血程度".  
+
+在没有合并贫血的人里面, 中药治疗的人很少, 会导致非常大的抽样误差, 从结果来看就是非常大的标准误. 
+
+```{r}
+df_data_glm[df_data_glm["血红蛋白"]<108.5, c("用药时间", "血红蛋白")]
+```
 
 ### 没交互的多因素模型
 ```{r}
 fit_多因素_1 = 
-  glm(血红蛋白是否改善 ~ 用药时间 + 年龄 + bmi + 血红蛋白 + CRP + 淋巴细胞绝对值 + mchc, 
-    data = df_data_glm, family = binomial())
+  glm(血红蛋白是否改善 ~ 用药时间 + 年龄 + bmi + 贫血程度 + CRP + 淋巴细胞绝对值 + mchc, 
+    data = df_data_glm, 
+    family = binomial())
  
 summary.glm(fit_多因素_1)  #展示拟合回归的简单统计
 ```
@@ -295,8 +328,9 @@ fit_多因素_1 %>% confint() %>% exp() %>% print()
 ### 用药时间和贫血程度交互的多因素模型
 ```{r}
 fit_多因素_2 = 
-  glm(血红蛋白是否改善 ~ 用药时间 * 血红蛋白 + 年龄 + bmi + CRP + 淋巴细胞绝对值 + mchc, 
-    data = df_data_glm, family = binomial())
+  glm(血红蛋白是否改善 ~ 用药时间 * 贫血程度 + 年龄 + bmi + CRP + 淋巴细胞绝对值 + mchc, 
+    data = df_data_glm, 
+    family = binomial())
  
 summary.glm(fit_多因素_2)  #展示拟合回归的简单统计
 ```
@@ -349,8 +383,18 @@ varImpPlot(rf_多因素, n.var = min(7, nrow(rf_多因素$importance)),
 ```
 
 
+## 将用到的数据保存下来
+下一步数据分析使用
 
+```{r}
+l_exploration_1 = list(
+  df_data_glm = df_data_glm, 
+  df_data_rf = df_data_rf, 
+  df_grpcop = df_grpcop
+)
 
+saveRDS(l_exploration_1, "outputs/l_exploration_1.rds")
+```
 
 
 

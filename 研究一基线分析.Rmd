@@ -1,0 +1,305 @@
+---
+title: '研究一: 基线分析'
+author: "Chen Tianhao"
+date: "2023-02-11"
+output: html_document
+---
+
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+
+##randomForest 包的随机森林
+library(randomForest)
+
+#使用 MASS 包 polr() 训练序数 logistic 回归，详情 ?polr
+library(MASS)
+
+library("ggpubr")
+library(car)
+library(multcomp)
+
+# 回归分析表格数据!
+# install.packages("gtsummary")
+library("gtsummary")
+
+# remotes::install_github("rstudio/gt", ref = gtsummary::gt_sha)
+# install.packages('flextable')
+library(flextable)
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+# 读入数据探索给出的log变换的数据
+```{r}
+
+l_exploration_1 = readRDS("outputs/l_exploration_1.rds")
+
+l_data_analysis_raw = readRDS("outputs/l_data_analysis_raw.rds")
+
+df_data_glm_raw = l_data_analysis_raw$df_data_glm
+df_grp_raw = l_data_analysis_raw$df_grpcop
+var_skewed = l_data_analysis_raw$var_skewed
+
+df_data_glm_log = l_exploration_1$df_data_glm
+df_grpcop_log = l_exploration_1$df_grpcop
+```
+
+
+比较一下log转换前后的数据
+```{r}
+df_data_glm_log$淋巴细胞绝对值 %>% head() %>% print()
+df_data_glm_raw$淋巴细胞绝对值 %>% head() %>% log() %>% print()
+```
+
+# 构造二分类数据作为因变量
+
+看一下二分类怎么搞
+```{r}
+
+raw_data$是否贫血 %>% table()
+```
+
+
+```{r}
+df_data_glm_log$贫血程度 %>% table()
+```
+
+以血红蛋白的含量来考虑呢
+```{r}
+df_data_glm_log[df_data_glm_log$血红蛋白>100, "血红蛋白"] 
+```
+
+贫血程度为0级别的那些人的血红蛋白是怎么样?
+```{r}
+df_data_glm_log[df_data_glm_log$贫血程度==1, "血红蛋白"]
+```
+
+合并贫血判断和df表格
+```{r}
+df_test = merge(df_data_glm_raw, raw_data[, c("姓名", "是否贫血")])
+df_test[df_test["是否贫血"]=="无", "血红蛋白"] %>% length() #只有26人, 太少了
+```
+
+按照轻度贫血来划分吧, 血红蛋白大于100为0, 即不贫血, 小于等于100为1, 即贫血
+```{r}
+df_data_glm_raw["是否贫血(阈值100g)"] =  
+  ifelse(df_data_glm_raw$血红蛋白>100, 0, 1)
+
+df_data_glm_log["是否贫血(阈值100g)"] =  
+  ifelse(df_data_glm_log$血红蛋白>100, 0, 1)
+```
+
+用于两组比较的数据框, 也加上是否贫血(100g)
+```{r}
+df_grp_raw = 
+  merge(df_grp_raw, df_data_glm_raw[, c("姓名", "是否贫血(阈值100g)")])
+
+df_grpcop_log = 
+  merge(df_grpcop_log, df_data_glm_log[, c("姓名", "是否贫血(阈值100g)")])
+```
+
+考察贫血二分类的table
+```{r}
+
+df_data_glm_log["是否贫血(阈值100g)"] = 
+  df_data_glm_log$`是否贫血(阈值100g)` %>% as.factor()
+
+df_data_glm_log %>% head()
+```
+
+# 把贫血三分类加上去啊
+```{r}
+df_data_trp = read.csv("outputs/df_data_glm.csv")
+df_data_trp %>% colnames()
+```
+
+用于两组比较的数据框, 也加上贫血改善程度(100g)
+```{r}
+df_grp_raw = 
+  merge(df_grp_raw, df_data_trp[, c("姓名", "贫血三分类")])
+
+df_grpcop_log = 
+  merge(df_grpcop_log, df_data_trp[, c("姓名", "贫血三分类")])
+```
+
+
+# 两类人分好了, 做描述性统计
+```{r}
+comp_是否贫血 = twogrps(df_grp_raw[-1], "是否贫血(阈值100g)")
+comp_是否贫血$Table
+```
+
+
+```{r}
+comp_是否贫血_log = twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)")
+comp_是否贫血_log$Table
+```
+
+
+
+```{r}
+multigrps(df_grpcop_log[-1], "贫血三分类", varlist = c("淋巴细胞绝对值"))
+```
+
+```{r}
+df_grpcop_log %>% colnames() %>% print(quote=T)
+```
+
+
+# 重要的步骤是确定单因素是有哪些变量要纳入的?
+```{r}
+# 先是人口学变量
+var_人口学 = c("年龄", "性别", "bmi", "化疗有无", 
+            "kps", "确诊部位", "病理类型", "分化程度" )
+
+var_中药治疗 = c("用药时间")
+
+var_贫血结局 = c("是否贫血(阈值100g)", "贫血三分类")
+
+var_贫血相关检查_基线 = c("血红蛋白", "血红蛋白变化值")
+
+var_实验室检查_基线 = c("CRP", "IL.6.0.7pg.ml.", "mcv", "mch", "mchc", 
+                 "中性粒细胞绝对值", "淋巴细胞绝对值", "中性粒.淋巴")
+
+var_贫血相关检查_随访 = c("血红蛋白.1", "血红蛋白变化值.1")
+
+var_实验室检查_随访 = c("CRP.1", "IL.6.0.7pg.ml..1", "mcv.1", "mch.1", "mchc.1", 
+                 "中性粒细胞绝对值.1", "淋巴细胞绝对值.1", "中性粒.淋巴.1")
+```
+
+
+# 基线数据, 贫血和不贫血人士的单因素分析
+```{r}
+comp_基线人口学比较 = 
+  twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
+        varlist = c(var_人口学, var_中药治疗, var_贫血结局[2]), 
+        skewvar = ("年龄"), 
+        ShowStatistic = T, ExtractP = 0.2)
+
+comp_基线实验室检查比较 = 
+  twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
+        varlist = var_实验室检查_基线, 
+        ShowStatistic = T, ExtractP = 0.2)
+```
+
+
+以0.2为阈值, 提取变量, 可以看到年龄和kps是显著的, 然后基线的hb和改善的方向有关系. 
+另一方面, 他们选择是否接受中医治疗是有倾向的. 
+mcv和mch高度相关, 取一个, 然后淋巴细胞绝对值加入多因素模型. 
+```{r}
+comp_基线人口学比较$VarExtract %>% print()
+
+comp_基线实验室检查比较$VarExtract %>% print()
+```
+
+# 基线数据, 多因素分析
+
+先写一个读取系数的辅助函数
+```{r}
+get_glm_OR = function(fit_single_model, row_var=2) {
+  # 参数: 
+  # fit_single_model: glm模型
+  # row_var: 第几个回归变量, 1为截距, 再单因素分析里面, 2为需要分析的因素
+  # 返回: 
+  # 一个vector, 有四个列, 第一列OR的点估计, 第二列是区间下限(2.5%), 第三列是
+  # 区间上限(97,5%), 第四列是p值
+  vec_coef_p = coefficients(summary.glm(fit_single_model))[row_var, c(1,4)]
+  vec_cofint = confint(fit_single_model)[row_var,] 
+  vec_est = c(vec_coef_p[1], vec_cofint, vec_coef_p[2])
+  vec_est[1:3] = exp(vec_est[1:3])
+  # vec_est = format(vec_est, scientific = FALSE, digits = 1)
+  # vec_est = as.numeric(vec_est)
+  return(vec_est)
+}
+```
+
+先考虑只有年龄和kps, mcv, 淋巴细胞绝对值
+```{r}
+fit_基线多因素_1 = 
+  glm(`是否贫血(阈值100g)` ~ 年龄 + kps + mcv + 淋巴细胞绝对值, 
+    data = df_data_glm_log, family = binomial())
+ 
+summary.glm(fit_基线多因素_1)  #展示拟合回归的简单统计
+# fit_基线多因素_1 %>% get_glm_OR(1:5) %>% print
+```
+
+加上用药时间
+```{r}
+fit_基线多因素_2 = 
+  glm(`是否贫血(阈值100g)` ~ 用药时间 + 年龄 + kps + mcv + 淋巴细胞绝对值, 
+    data = df_data_glm_log, family = binomial())
+ 
+summary.glm(fit_基线多因素_2)  #展示拟合回归的简单统计
+```
+
+加上了好像表现更好了
+```{r}
+t1 = fit_基线多因素_1 %>% tbl_regression(exponentiate = TRUE)
+t2 = fit_基线多因素_2 %>% tbl_regression(exponentiate = TRUE)
+```
+
+
+```{r}
+tbl_merge_ex1 <-
+  tbl_merge(
+    tbls = list(t1, t2),
+    tab_spanner = c("**不纳入用药时间**", "**纳入用药时间**")
+  ) %>% modify_caption("**模型比较**")
+
+tbl_merge_ex1
+```
+
+
+```{r}
+tbl_merge_ex1 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path="outputs/tbl_merge_ex1.docx")
+```
+
+
+
+# 研究2: 考察三分类的情况
+
+单因素分析
+```{r}
+multigrps(df_grpcop_log[-1], "贫血三分类", 
+          varlist = c(var_人口学, var_中药治疗, var_贫血结局[2]), 
+          skewvar = ("年龄"), 
+          ShowStatistic = T)
+
+```
+
+
+
+
+
+
+
+
+
+

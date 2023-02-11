@@ -1,0 +1,41 @@
+Sample	Group	Relative_expression
+Sham-1	Sham	0.00128 
+Sham-2	Sham	0.00352 
+Sham-3	Sham	0.00227 
+Sham-4	Sham	0.00384 
+Sham-5	Sham	0.00227 
+Sham-6	Sham	0.00178 
+Sham-7	Sham	0.00291 
+Sham-8	Sham	0.00248 
+SNL 3d-1	SNL 3d	0.00405 
+SNL 3d-2	SNL 3d	0.00381 
+SNL 3d-3	SNL 3d	0.00300 
+SNL 3d-4	SNL 3d	0.00491 
+SNL 3d-5	SNL 3d	0.00335 
+SNL 3d-6	SNL 3d	0.00262 
+SNL 3d-7	SNL 3d	0.00413 
+SNL 3d-8	SNL 3d	0.00357 
+Day 7d-1	Day 7d	0.00465 
+Day 7d-2	Day 7d	0.00340 
+Day 7d-3	Day 7d	0.00342 
+Day 7d-4	Day 7d	0.00530 
+Day 7d-5	Day 7d	0.00395 
+Day 7d-6	Day 7d	0.00401 
+Day 7d-7	Day 7d	0.00412 
+Day 7d-8	Day 7d	0.00413 
+Day 10d-1	Day 10d	0.00508 
+Day 10d-2	Day 10d	0.00499 
+Day 10d-3	Day 10d	0.00528 
+Day 10d-4	Day 10d	0.00326 
+Day 10d-5	Day 10d	0.00461 
+Day 10d-6	Day 10d	0.00545 
+Day 10d-7	Day 10d	0.00524 
+Day 10d-8	Day 10d	0.00617 
+Day 14d-1	Day 14d	0.00384 
+Day 14d-2	Day 14d	0.00613 
+Day 14d-3	Day 14d	0.00538 
+Day 14d-4	Day 14d	0.00451 
+Day 14d-5	Day 14d	0.00493 
+Day 14d-6	Day 14d	0.00503 
+Day 14d-7	Day 14d	0.00655 
+Day 14d-8	Day 14d	0.00470 
