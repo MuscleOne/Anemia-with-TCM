@@ -217,6 +217,21 @@ comp_基线人口学比较$VarExtract %>% print()
 comp_基线实验室检查比较$VarExtract %>% print()
 ```
 
+# 基线数据的单因素分析: 借助`tbl_uvregression()`
+
+实验版本
+```{r}
+df_data_glm_log[, c("是否贫血(阈值100g)", var_人口学, var_中药治疗)] %>% as_tibble() %>% 
+    tbl_uvregression(
+    method = glm,
+    y = "是否贫血(阈值100g)",
+    method.args = list(family = binomial),
+    exponentiate = TRUE,
+    pvalue_fun = function(x) style_pvalue(x, digits = 2)
+  ) 
+
+```
+
 # 基线数据, 多因素分析
 
 先写一个读取系数的辅助函数
@@ -287,13 +302,129 @@ tbl_merge_ex1 %>%
 
 单因素分析
 ```{r}
-multigrps(df_grpcop_log[-1], "贫血三分类", 
+  comp_随访人口学比较 = 
+  multigrps(df_grpcop_log[-1], "贫血三分类", 
           varlist = c(var_人口学, var_中药治疗, var_贫血结局[2]), 
           skewvar = ("年龄"), 
           ShowStatistic = T)
 
 ```
 
+
+```{r}
+comp_随访人口学比较 %>% print()
+```
+
+# 随访的实验室检查的变量之差
+
+先生成差异的数据
+```{r}
+# 实验室检查的相关变量
+
+var_实验室检查_差异 = c("CRP差异", "IL6差异", "mcv差异", "mch差异", "mchc差异", 
+                 "中性粒细胞绝对值差异", "淋巴细胞绝对值差异", "中性粒比淋巴差异")
+
+df_data_trp[var_实验室检查_差异] = NA
+
+
+for (i in 1:length(var_实验室检查_基线)) {
+  df_data_trp[var_实验室检查_差异[i]] =
+    df_data_trp[var_实验室检查_随访][i] - df_data_trp[var_实验室检查_基线][i] 
+}
+
+df_data_trp %>% str() %>% print()
+```
+
+做表
+单因素分析
+```{r}
+  comp_随访实验室检查比较 = 
+  multigrps(df_data_trp[-1], "贫血三分类", 
+          varlist = var_实验室检查_差异, 
+          skewvar = var_实验室检查_差异,
+          ShowStatistic = T)
+
+```
+
+
+```{r}
+comp_随访实验室检查比较 %>% print()
+```
+
+```{r}
+df_差异作图 = df_data_trp[, c("姓名", "贫血三分类", var_实验室检查_差异)]
+df_差异作图$贫血三分类 = 
+  df_差异作图$贫血三分类 %>% as.factor() %>% ordered()
+df_差异作图$贫血三分类
+```
+
+作图
+```{r}
+p_淋巴细胞 = ggboxplot(data = df_data_trp, 
+          x = '贫血三分类', y = '淋巴细胞绝对值差异', color = '贫血三分类') + 
+          stat_compare_means(method = 'wilcox.test', 
+                             comparisons = list(c('0', '1'), c('0', '2'), c('1', '2'))
+          )
+p_淋巴细胞 %>% print()
+```
+
+
+画一个图做试验
+```{r}
+my_comparisons = 
+  list(c("0", "1"), c("1", "2"), c("0", "2"))
+
+p_test =
+  ggline(df_差异作图, 
+      x = "贫血三分类",
+      y = 'CRP差异',
+      # combine = TRUE,
+      ylab = "差异", 
+      
+      color = "gray",                                     # Line color
+      add = c("mean_sd", "violin", "jitter"),                     
+      add.params = list(color = "贫血三分类"),
+      palette = "jco"
+      )+ 
+  stat_compare_means(method = 'wilcox.test', comparisons = my_comparisons) +
+ggtitle(paste0("比较三组中", 'CRP差异'))  # Add pairwise comparisons p-value
+  # stat_compare_means(label.y = 5)  
+```
+
+```{r}
+plot_items_cop = 
+  function(df_d, group, var_set, my_comparisons = 
+  list(c("0", "1"), c("1", "2"), c("0", "2")), y_lab="差异") {
+    l_p = vector()  
+    for(i in 1:length(var_set) ) {
+        var_y = var_set[i]
+        p_i =
+          ggline(df_d, x = group, y = var_y,
+          # combine = TRUE,
+          ylab = y_lab, 
+          color = "gray",                                     # Line color
+          add = c("mean_sd", "violin", "jitter"),                     
+          add.params = list(color = group),
+           palette = "jco"
+         ) +  
+         stat_compare_means(method = 'wilcox.test', comparisons = my_comparisons) + 
+          ggtitle(paste0("比较三组中", var_y))
+    # 这个print的函数很重要哈
+    print(p_i)   
+    }
+    # return(l_p)
+   } 
+
+```
+
+
+
+作循环的图片
+```{r}
+par(mfrow=c(3,3))
+p = plot_items_cop(df_差异作图, "贫血三分类", var_实验室检查_差异 )
+
+```
 
 
 
