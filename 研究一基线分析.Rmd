@@ -38,6 +38,10 @@ library("gtsummary")
 # remotes::install_github("rstudio/gt", ref = gtsummary::gt_sha)
 # install.packages('flextable')
 library(flextable)
+
+# export dataframe as excel file
+library("writexl")
+
 ```
 
 
@@ -204,6 +208,7 @@ comp_基线人口学比较 =
 comp_基线实验室检查比较 = 
   twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
         varlist = var_实验室检查_基线, 
+        skewvar = var_实验室检查_基线,
         ShowStatistic = T, ExtractP = 0.2)
 ```
 
@@ -449,8 +454,13 @@ df_随访实验室检查比较结果 = comp_随访实验室检查比较
 ```
 
 将表格保存为文件
+```{r}
+write_xlsx(df_基线人口学比较结果,"outputs/12_feb_table/df_基线人口学比较结果.xlsx")
+write_xlsx(df_基线实验室检查比较结果,"outputs/12_feb_table/df_基线实验室检查比较结果.xlsx")
+write_xlsx(df_随访人口学比较结果,"outputs/12_feb_table/df_随访人口学比较结果.xlsx")
+write_xlsx(df_随访实验室检查比较结果,"outputs/12_feb_table/df_随访实验室检查比较结果.xlsx")
 
-
+```
 
 
 
