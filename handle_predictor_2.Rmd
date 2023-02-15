@@ -114,9 +114,29 @@ df_evidence %>% head()
 library(mice)
 ```
 
+
+### 把免疫数据补充上
+
+从raw的数据框里面把免疫数据搞上
+```{r}
+raw_data %>% colnames()
+```
+
+把免疫的相关变量筛选出来
+```{r}
+var_基线免疫指标 = colnames(raw_data)[c(24:31)]
+var_随访免疫指标 = colnames(raw_data)[c(57:64)]
+```
+
+搞成数据框
+```{r}
+df_免疫指标 = raw_data[, c("姓名", var_基线免疫指标, var_随访免疫指标)]
+df_免疫指标 %>% head()
+```
+
 缺失的和不缺失的数据都搞上去
 ```{r}
-df_join = merge(df_evidence, df_immu) %>% merge(df_redcell_par)
+df_join = merge(df_evidence, df_immu) %>% merge(df_redcell_par) %>% merge(df_免疫指标)
 df_join %>% names()
 ```
 
@@ -181,6 +201,13 @@ df_join_imp %>% head(20)
 
 ```{r}
 df_join_imp %>% head(20)
+```
+
+
+### 将免疫的数据专门输出
+```{r}
+df_填补的免疫指标数据 = df_join_imp[, c("姓名", var_基线免疫指标, var_随访免疫指标)]
+write.csv(df_填补的免疫指标数据, "outputs/df_填补的免疫指标数据.csv")
 ```
 
 ### 用mice输出

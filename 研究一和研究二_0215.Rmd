@@ -1,7 +1,6 @@
 ---
-title: '研究一: 基线分析'
-author: "Chen Tianhao"
-date: "2023-02-11"
+title: '研究一和研究二数据分析'
+date: "2023-02-15"
 output: html_document
 ---
 
@@ -74,11 +73,11 @@ df_grpcop_log = l_exploration_1$df_grpcop
 ```
 
 
-比较一下log转换前后的数据
-```{r}
-df_data_glm_log$淋巴细胞绝对值 %>% head() %>% print()
-df_data_glm_raw$淋巴细胞绝对值 %>% head() %>% log() %>% print()
-```
+<!-- 比较一下log转换前后的数据 -->
+<!-- ```{r} -->
+<!-- df_data_glm_log$淋巴细胞绝对值 %>% head() %>% print() -->
+<!-- df_data_glm_raw$淋巴细胞绝对值 %>% head() %>% log() %>% print() -->
+<!-- ``` -->
 
 # 构造二分类数据作为因变量
 
@@ -239,24 +238,24 @@ df_data_glm_log[, c("是否贫血(阈值100g)", var_人口学, var_中药治疗)
 
 # 基线数据, 多因素分析
 
-先写一个读取系数的辅助函数
-```{r}
-get_glm_OR = function(fit_single_model, row_var=2) {
-  # 参数: 
-  # fit_single_model: glm模型
-  # row_var: 第几个回归变量, 1为截距, 再单因素分析里面, 2为需要分析的因素
-  # 返回: 
-  # 一个vector, 有四个列, 第一列OR的点估计, 第二列是区间下限(2.5%), 第三列是
-  # 区间上限(97,5%), 第四列是p值
-  vec_coef_p = coefficients(summary.glm(fit_single_model))[row_var, c(1,4)]
-  vec_cofint = confint(fit_single_model)[row_var,] 
-  vec_est = c(vec_coef_p[1], vec_cofint, vec_coef_p[2])
-  vec_est[1:3] = exp(vec_est[1:3])
-  # vec_est = format(vec_est, scientific = FALSE, digits = 1)
-  # vec_est = as.numeric(vec_est)
-  return(vec_est)
-}
-```
+<!-- 先写一个读取系数的辅助函数 -->
+<!-- ```{r} -->
+<!-- get_glm_OR = function(fit_single_model, row_var=2) { -->
+<!--   # 参数:  -->
+<!--   # fit_single_model: glm模型 -->
+<!--   # row_var: 第几个回归变量, 1为截距, 再单因素分析里面, 2为需要分析的因素 -->
+<!--   # 返回:  -->
+<!--   # 一个vector, 有四个列, 第一列OR的点估计, 第二列是区间下限(2.5%), 第三列是 -->
+<!--   # 区间上限(97,5%), 第四列是p值 -->
+<!--   vec_coef_p = coefficients(summary.glm(fit_single_model))[row_var, c(1,4)] -->
+<!--   vec_cofint = confint(fit_single_model)[row_var,]  -->
+<!--   vec_est = c(vec_coef_p[1], vec_cofint, vec_coef_p[2]) -->
+<!--   vec_est[1:3] = exp(vec_est[1:3]) -->
+<!--   # vec_est = format(vec_est, scientific = FALSE, digits = 1) -->
+<!--   # vec_est = as.numeric(vec_est) -->
+<!--   return(vec_est) -->
+<!-- } -->
+<!-- ``` -->
 
 先考虑只有年龄和kps, mcv, 淋巴细胞绝对值
 ```{r}
@@ -396,7 +395,6 @@ ggtitle(paste0("比较三组中", 'CRP差异'))  # Add pairwise comparisons p-va
   # stat_compare_means(label.y = 5)  
 ```
 
-
 ```{r}
 plot_items_cop = 
   function(df_d, group, var_set, my_comparisons = 
@@ -430,6 +428,68 @@ plot_items_cop =
 par(mfrow=c(3,3))
 p = plot_items_cop(df_差异作图, "贫血三分类", var_实验室检查_差异 )
 
+```
+# 作为二月12号的数据处理的结果, 紧急保存用于下一个分析流程
+
+首先是变量组的名字
+```{r}
+l_变量组 = list(
+  var_中药治疗 = var_中药治疗, 
+  var_人口学 = var_人口学, 
+  var_贫血结局 = var_贫血结局, 
+  var_实验室检查_基线 = var_实验室检查_基线, 
+  var_实验室检查_随访 = var_实验室检查_随访, 
+  var_实验室检查_差异 = var_实验室检查_差异, 
+  var_贫血相关检查_随访 = var_贫血相关检查_随访
+)
+```
+
+将这些名字保存成rds
+```{r}
+saveRDS(l_变量组, "report/prepared_data/l_变量组_0215.rds")
+```
+
+然后保存放进去模型用于分析的数据框
+
+-基线数据单因素分析
+```{r}
+# 基线人口学和实验室检查比较
+df_grpcop_log %>% write.csv("report/prepared_data/df_基线_随访_单因素_log.csv", row.names = F)
+```
+
+-基线数据多因素分析, logistics回归
+```{r}
+df_data_glm_log %>% write.csv("report/prepared_data/df_基线_多因素_log.csv", row.names = F)
+```
+
+-随访单因素分析(人口学比较)
+```{r}
+# 同df_grpcop_log
+```
+
+-随访的实验室比较
+```{r}
+df_data_trp %>% write.csv("report/prepared_data/df_随访_单因素_实验室_log.csv", row.names = F)
+```
+
+-随访: 实验室比较的差异作图
+```{r}
+df_差异作图 %>% write.csv("report/prepared_data/df_差异作图.csv", row.names = F)
+```
+
+将上面这些表格也保存成rds
+```{r}
+l_数据框集合 = list(
+  df_基线_随访_单因素_log = df_grpcop_log, 
+  df_基线_多因素_log = df_data_glm_log, 
+  f_随访_单因素_实验室_log = df_data_trp, 
+  df_差异作图 = df_差异作图
+)
+```
+
+
+```{r}
+l_数据框集合 %>% saveRDS("report/prepared_data/l_数据框集合_0215.rds")
 ```
 
 # 截至12号, 需要保存的表格

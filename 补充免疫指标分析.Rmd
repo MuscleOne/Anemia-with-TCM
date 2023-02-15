@@ -1,0 +1,117 @@
+---
+title: "补充免疫指标分析"
+output: html_document
+date: "2023-02-15"
+---
+
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+
+##randomForest 包的随机森林
+library(randomForest)
+
+#使用 MASS 包 polr() 训练序数 logistic 回归，详情 ?polr
+library(MASS)
+
+library("ggpubr")
+library(car)
+library(multcomp)
+
+# 回归分析表格数据!
+# install.packages("gtsummary")
+library("gtsummary")
+
+# remotes::install_github("rstudio/gt", ref = gtsummary::gt_sha)
+# install.packages('flextable')
+library(flextable)
+
+# export dataframe as excel file
+library("writexl")
+
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+# 读入捏造的免疫指标数据
+```{r}
+df_免疫指标 = read.csv("outputs/df_填补的免疫指标数据.csv")[-1]
+```
+
+## 看看免疫指标的分布
+```{r}
+df_免疫指标 %>% summary
+```
+
+前后的数据做差看看?
+
+# 搞上自然对数转换的免疫指标变量, 并且将它求差
+```{r}
+df_免疫指标_log = df_免疫指标
+df_免疫指标_log[-1] = df_免疫指标[-1] %>% log()
+df_免疫指标_log %>% head(10)
+```
+
+-先搞好列名
+
+```{r}
+var_基线免疫指标 = df_免疫指标[, c(2:9)] %>% colnames()
+var_随访免疫指标 = df_免疫指标[, c(10:17)] %>% colnames()
+```
+
+```{r}
+var_免疫指标差值 = paste0(var_基线免疫指标, "差值")
+```
+
+
+```{r}
+df_免疫指标_log[var_免疫指标差值] = NA
+
+
+for (i in 1:length(var_基线免疫指标)) {
+  df_免疫指标_log[var_免疫指标差值[i]] =
+    df_免疫指标_log[var_随访免疫指标][i] - df_免疫指标_log[var_基线免疫指标][i] 
+}
+
+df_免疫指标_log %>% str()
+df_免疫指标_log[-1] %>% head()
+```
+
+我们正式分析的免疫指标内容应该是这个`df_免疫指标_log`
+
+# 将数据框保存下来
+```{r}
+df_免疫指标_log %>% write.csv("outputs/df_免疫指标_log.csv", row.names = F)
+```
+
+
+
+
+
+
+
+

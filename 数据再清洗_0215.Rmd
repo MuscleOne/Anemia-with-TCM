@@ -1,0 +1,407 @@
+---
+title: '数据再清洗'
+date: "2023-02-15"
+output: html_document
+---
+
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+
+##randomForest 包的随机森林
+library(randomForest)
+
+#使用 MASS 包 polr() 训练序数 logistic 回归，详情 ?polr
+library(MASS)
+
+library("ggpubr")
+library(car)
+library(multcomp)
+
+# 回归分析表格数据!
+# install.packages("gtsummary")
+library("gtsummary")
+
+# remotes::install_github("rstudio/gt", ref = gtsummary::gt_sha)
+# install.packages('flextable')
+library(flextable)
+
+# export dataframe as excel file
+library("writexl")
+
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+# 读入12号产生的数据
+```{r}
+l_变量组 = readRDS("report/prepared_data/l_变量组_0215.rds")
+l_数据框集合 =readRDS("report/prepared_data/l_数据框集合_0215.rds")
+df_免疫指标_log = read.csv("outputs/df_免疫指标_log.csv")
+```
+
+将列表数据搞出来
+```{r}
+var_中药治疗 = l_变量组$var_中药治疗
+var_人口学 = l_变量组$var_人口学
+var_贫血结局 = l_变量组$var_贫血结局
+var_实验室检查_基线 = l_变量组$var_实验室检查_基线
+var_实验室检查_随访 = l_变量组$var_实验室检查_随访
+var_实验室检查_差异 = l_变量组$var_实验室检查_差异
+
+df_基线_随访_单因素_log = l_数据框集合$df_基线_随访_单因素_log
+df_基线_多因素_log = l_数据框集合$df_基线_多因素_log
+df_随访_单因素_实验室_log = l_数据框集合$f_随访_单因素_实验室_log
+df_差异作图 = l_数据框集合$df_差异作图
+```
+
+# 将免疫数据搞进去
+基本上, 免疫数据单因素分析和多因素分析都有用, 角色与实验室检查结果是相等的
+
+```{r}
+# df_免疫指标_log %>% str() %>% head()
+var_免疫指标 = colnames(df_免疫指标_log)[2:9]
+var_免疫指标变化 = colnames(df_免疫指标_log)[18:25]
+```
+
+并入基线数据框中
+
+-单因素数据分析
+```{r}
+df_基线_随访_单因素_log = 
+  df_基线_随访_单因素_log %>% merge(df_免疫指标_log[, c("姓名", var_免疫指标, var_免疫指标变化)])
+
+# df_基线_随访_单因素_log %>% colnames()
+```
+
+-多因素数据分析
+```{r}
+df_基线_多因素_log = 
+  df_基线_多因素_log %>% merge(df_免疫指标_log[, c("姓名", var_免疫指标, var_免疫指标变化)])
+
+# df_基线_多因素_log %>% colnames()
+```
+
+-随访单因素实验室
+```{r}
+df_随访_单因素_实验室_log = 
+  df_随访_单因素_实验室_log %>% merge(df_免疫指标_log[, c("姓名", var_免疫指标, var_免疫指标变化)])
+```
+
+-随访差异的可视化
+```{r}
+
+df_差异作图 = 
+  df_差异作图 %>% merge(df_免疫指标_log[, c("姓名", var_免疫指标变化)])
+
+```
+
+# 在随访中, 将基线的血红蛋白含量纳入考察
+```{r}
+df_差异作图 = 
+  df_差异作图 %>% merge(df_基线_随访_单因素_log[, c("姓名", "血红蛋白", "血红蛋白变化值")])
+
+df_差异作图 %>% colnames()
+```
+
+# 处理单因素分析时的编码问题
+
+分组("是否贫血(阈值100g)", "贫血三分类"), 性别, 化疗有无, 分化程度, 用药时间
+
+```{r}
+var_编码问题的变量 = c("是否贫血(阈值100g)", "贫血三分类", "性别", "化疗有无", "分化程度", "用药时间")
+```
+
+这些变量将修订成新的名字
+```{r}
+var_编码问题的变量_修订 = c("基线是否贫血", "随访贫血是否改善", "性别", "化疗有无", "分化程度", "用药时间")
+```
+
+处理三个表格: 
+
+-`df_基线_随访_单因素_log`
+-`df_基线_多因素_log`
+-`df_差异作图`
+-`df_随访_单因素_实验室_log`
+
+对`df_基线_随访_单因素_log`表格处理
+```{r}
+df_基线_随访_单因素_log[, colnames(df_基线_随访_单因素_log) %in% var_编码问题的变量] %>% colnames()
+```
+
+```{r}
+# 备份
+# df_基线_随访_单因素_log_1 = df_基线_随访_单因素_log
+# df_基线_随访_单因素_log = df_基线_随访_单因素_log_1
+```
+
+```{r}
+# 备份
+df_基线_随访_单因素_log["用药时间.1"]=df_基线_随访_单因素_log["用药时间"]
+df_基线_随访_单因素_log["性别.1"]=df_基线_随访_单因素_log["性别"]
+df_基线_随访_单因素_log["化疗有无.1"]=df_基线_随访_单因素_log["化疗有无"]
+df_基线_随访_单因素_log["分化程度.1"]=df_基线_随访_单因素_log["分化程度"]
+df_基线_随访_单因素_log["基线是否贫血"]=df_基线_随访_单因素_log["是否贫血(阈值100g)"]
+df_基线_随访_单因素_log["随访贫血是否改善"]=df_基线_随访_单因素_log["贫血三分类"]
+```
+
+双分类变量
+```{r}
+df_基线_随访_单因素_log$用药时间=ifelse(df_基线_随访_单因素_log$用药时间==1, "大于三个月", "小于三个月")
+df_基线_随访_单因素_log$性别=ifelse(df_基线_随访_单因素_log$性别==1, "男", "女")
+df_基线_随访_单因素_log$化疗有无=ifelse(df_基线_随访_单因素_log$化疗有无==1, "有", "无")
+df_基线_随访_单因素_log$基线是否贫血=ifelse(df_基线_随访_单因素_log$基线是否贫血==1, "贫血组", "非贫血组")
+```
+
+四分类变量
+```{r}
+# 分化程度
+df_基线_随访_单因素_log$分化程度 = replace(df_基线_随访_单因素_log$分化程度, df_基线_随访_单因素_log$分化程度.1==0, "低分化")
+df_基线_随访_单因素_log$分化程度 = replace(df_基线_随访_单因素_log$分化程度, df_基线_随访_单因素_log$分化程度.1==1, "中低分化")
+df_基线_随访_单因素_log$分化程度 = replace(df_基线_随访_单因素_log$分化程度, df_基线_随访_单因素_log$分化程度.1==2, "中分化")
+df_基线_随访_单因素_log$分化程度 = replace(df_基线_随访_单因素_log$分化程度, df_基线_随访_单因素_log$分化程度.1==3, "高分化")
+
+df_基线_随访_单因素_log$分化程度 %>% table()
+```
+
+三分类变量
+```{r}
+# 处理贫血三分类
+df_基线_随访_单因素_log$随访贫血是否改善 = 
+  replace(df_基线_随访_单因素_log$随访贫血是否改善, df_基线_随访_单因素_log$贫血三分类==0, "Hb下降组")
+
+df_基线_随访_单因素_log$随访贫血是否改善 = 
+  replace(df_基线_随访_单因素_log$随访贫血是否改善, df_基线_随访_单因素_log$贫血三分类==1, "Hb不变组")
+
+df_基线_随访_单因素_log$随访贫血是否改善 = 
+  replace(df_基线_随访_单因素_log$随访贫血是否改善, df_基线_随访_单因素_log$贫血三分类==2, "Hb上升组")
+
+df_基线_随访_单因素_log$随访贫血是否改善 %>% table()
+```
+
+看看处理完的结构
+```{r}
+df_基线_随访_单因素_log[, var_编码问题的变量] %>% str()
+df_基线_随访_单因素_log[, var_编码问题的变量_修订] %>% str()
+```
+
+对`df_基线_多因素_log`表格处理
+```{r}
+# 备份
+# df_基线_多因素_log_1 = df_基线_多因素_log
+# df_基线_多因素_log = df_基线_多因素_log_1
+
+
+df_基线_多因素_log[, colnames(df_基线_多因素_log) %in% var_编码问题的变量] %>% colnames()
+```
+
+```{r}
+df_基线_多因素_log["用药时间.1"]=df_基线_多因素_log["用药时间"]
+df_基线_多因素_log["性别.1"]=df_基线_多因素_log["性别"]
+df_基线_多因素_log["化疗有无.1"]=df_基线_多因素_log["化疗有无"]
+df_基线_多因素_log["分化程度.1"]=df_基线_多因素_log["分化程度"]
+df_基线_多因素_log["基线是否贫血"]=df_基线_多因素_log["是否贫血(阈值100g)"]
+```
+
+两分类
+```{r}
+df_基线_多因素_log$用药时间=ifelse(df_基线_多因素_log$用药时间==1, "大于三个月", "小于三个月")
+df_基线_多因素_log$性别=ifelse(df_基线_多因素_log$性别==1, "男", "女")
+df_基线_多因素_log$化疗有无=ifelse(df_基线_多因素_log$化疗有无==1, "有", "无")
+df_基线_多因素_log$基线是否贫血=ifelse(df_基线_多因素_log$基线是否贫血==1, "贫血组", "非贫血组")
+```
+
+将修改后的结果改成因子
+```{r}
+df_基线_多因素_log$用药时间=df_基线_多因素_log$用药时间 %>% as.factor()
+df_基线_多因素_log$性别=df_基线_多因素_log$性别 %>% as.factor()
+df_基线_多因素_log$化疗有无=df_基线_多因素_log$化疗有无 %>% as.factor()
+df_基线_多因素_log$基线是否贫血=df_基线_多因素_log$基线是否贫血 %>% as.factor()
+```
+
+
+四分类
+```{r}
+# 分化程度
+
+df_基线_多因素_log$分化程度 = df_基线_多因素_log$分化程度 %>% as.character()
+
+df_基线_多因素_log$分化程度 = replace(df_基线_多因素_log$分化程度, df_基线_多因素_log$分化程度.1==0, "低分化")
+df_基线_多因素_log$分化程度 = replace(df_基线_多因素_log$分化程度, df_基线_多因素_log$分化程度.1==1, "中低分化")
+df_基线_多因素_log$分化程度 = replace(df_基线_多因素_log$分化程度, df_基线_多因素_log$分化程度.1==2, "中分化")
+df_基线_多因素_log$分化程度 = replace(df_基线_多因素_log$分化程度, df_基线_多因素_log$分化程度.1==3, "高分化")
+
+df_基线_多因素_log$分化程度 %>% table()
+
+```
+
+将处理后的结果处理成因子
+```{r}
+df_基线_多因素_log$分化程度 = 
+  df_基线_多因素_log$分化程度 %>% 
+  factor(levels =c("低分化","中低分化", "中分化", "高分化"), ordered = T)
+```
+
+
+考察处理结果
+```{r}
+df_基线_多因素_log[df_基线_多因素_log[, colnames(df_基线_多因素_log) %in% var_编码问题的变量] %>% colnames()] %>% str()
+```
+
+
+对`df_随访_单因素_实验室_log`表格处理
+```{r}
+
+df_随访_单因素_实验室_log$随访贫血是否改善=df_随访_单因素_实验室_log$贫血三分类
+```
+
+
+```{r}
+# 处理贫血三分类
+
+df_随访_单因素_实验室_log$随访贫血是否改善 = df_随访_单因素_实验室_log$随访贫血是否改善 %>% as.character()
+
+df_随访_单因素_实验室_log$随访贫血是否改善 = 
+  replace(df_随访_单因素_实验室_log$随访贫血是否改善, df_随访_单因素_实验室_log$贫血三分类==0, "Hb下降组")
+
+df_随访_单因素_实验室_log$随访贫血是否改善 = 
+  replace(df_随访_单因素_实验室_log$随访贫血是否改善, df_随访_单因素_实验室_log$贫血三分类==1, "Hb不变组")
+
+df_随访_单因素_实验室_log$随访贫血是否改善 = 
+  replace(df_随访_单因素_实验室_log$随访贫血是否改善, df_随访_单因素_实验室_log$贫血三分类==2, "Hb上升组")
+
+df_随访_单因素_实验室_log$随访贫血是否改善 %>% table()
+
+```
+
+改回因子
+```{r}
+
+df_随访_单因素_实验室_log$随访贫血是否改善 = 
+  df_随访_单因素_实验室_log$随访贫血是否改善 %>% 
+  factor(levels =c("Hb下降组","Hb不变组", "Hb上升组"), ordered = T)
+# df_差异作图$随访贫血是否改善 %>% 
+```
+
+检查
+```{r}
+df_随访_单因素_实验室_log$随访贫血是否改善
+```
+
+# 检查变量集合
+```{r}
+# "是否贫血(阈值100g)" "贫血三分类" 
+var_贫血结局 = c("基线是否贫血", "随访贫血是否改善")
+```
+
+
+对`df_差异作图`表格处理
+```{r}
+
+df_差异作图$随访贫血是否改善=df_差异作图$贫血三分类
+```
+
+
+```{r}
+# 处理贫血三分类
+
+df_差异作图$随访贫血是否改善 = df_差异作图$随访贫血是否改善 %>% as.character()
+
+df_差异作图$随访贫血是否改善 = 
+  replace(df_差异作图$随访贫血是否改善, df_差异作图$贫血三分类==0, "Hb下降组")
+
+df_差异作图$随访贫血是否改善 = 
+  replace(df_差异作图$随访贫血是否改善, df_差异作图$贫血三分类==1, "Hb不变组")
+
+df_差异作图$随访贫血是否改善 = 
+  replace(df_差异作图$随访贫血是否改善, df_差异作图$贫血三分类==2, "Hb上升组")
+
+df_差异作图$随访贫血是否改善 %>% table()
+
+```
+
+改回因子
+```{r}
+
+df_差异作图$随访贫血是否改善 = 
+  df_差异作图$随访贫血是否改善 %>% 
+  factor(levels =c("Hb下降组","Hb不变组", "Hb上升组"), ordered = T)
+# df_差异作图$随访贫血是否改善 %>% 
+```
+
+检查
+```{r}
+df_差异作图$随访贫血是否改善
+```
+
+# 检查变量集合
+```{r}
+# "是否贫血(阈值100g)" "贫血三分类" 
+var_贫血结局 = c("基线是否贫血", "随访贫血是否改善")
+```
+
+
+# 更新数据
+更新变量组
+```{r}
+l_变量组_更新 = list(
+  var_中药治疗 = var_中药治疗, 
+  var_人口学 = var_人口学, 
+  var_贫血结局 = var_贫血结局, 
+  var_实验室检查_基线 = var_实验室检查_基线, 
+  # var_实验室检查_随访 = var_实验室检查_随访, 
+  var_实验室检查_差异 = var_实验室检查_差异, 
+  # var_贫血相关检查_随访 = var_贫血相关检查_随访, 
+  var_贫血结局 = var_贫血结局, 
+  var_免疫指标 = var_免疫指标, 
+  var_免疫指标变化 = var_免疫指标变化
+)
+
+saveRDS(l_变量组_更新, "report/prepared_data/l_变量组_0215_更新.rds")
+
+```
+
+
+更新数据框
+```{r}
+l_数据框集合_更新 = list(
+  df_基线_随访_单因素_log = df_基线_随访_单因素_log, 
+  df_基线_多因素_log = df_基线_多因素_log, 
+  df_随访_单因素_实验室_log = df_随访_单因素_实验室_log, 
+  df_差异作图 = df_差异作图
+)
+```
+
+保存为rds文件
+```{r}
+saveRDS(l_数据框集合_更新, "report/prepared_data/l_数据框集合_0215_更新.rds")
+```
+
+
+
+
+

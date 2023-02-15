@@ -1,0 +1,142 @@
+---
+title: "研究一和研究二-修改版"
+output: html_document
+date: "2023-02-15"
+---
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+
+##randomForest 包的随机森林
+library(randomForest)
+
+#使用 MASS 包 polr() 训练序数 logistic 回归，详情 ?polr
+library(MASS)
+
+library("ggpubr")
+library(car)
+library(multcomp)
+
+# 回归分析表格数据!
+# install.packages("gtsummary")
+library("gtsummary")
+
+# remotes::install_github("rstudio/gt", ref = gtsummary::gt_sha)
+# install.packages('flextable')
+library(flextable)
+
+# export dataframe as excel file
+library("writexl")
+
+```
+
+
+## import the data and then have a look
+
+```{r}
+raw_data = read.csv("outputs/raw_data.csv", encoding="UTF-8")
+raw_data[raw_data==""] = NA # convert the null values to NA
+```
+
+have a look of the structure of dataframe
+```{r}
+raw_data = raw_data[,1:78]
+raw_data %>% dim()
+```
+
+# 读入2月15日修订好的数据
+```{r}
+l_数据框集合 = readRDS("report/prepared_data/l_数据框集合_0215_更新.rds")
+l_变量组 = readRDS("report/prepared_data/l_变量组_0215_更新.rds")
+```
+
+# 将列表里的元素拿出来
+变量组
+```{r}
+var_中药治疗 = l_变量组$var_中药治疗
+var_人口学 = l_变量组$var_人口学
+var_贫血结局 = l_变量组$var_贫血结局
+var_实验室检查_基线 = l_变量组$var_实验室检查_基线
+var_实验室检查_差异 = l_变量组$var_实验室检查_差异
+var_免疫指标 = l_变量组$var_免疫指标
+var_免疫指标变化 = l_变量组$var_免疫指标变化
+```
+
+数据框
+```{r}
+df_基线_随访_单因素_log=l_数据框集合$df_基线_随访_单因素_log
+df_基线_多因素_log=l_数据框集合$df_基线_多因素_log
+df_随访_单因素_实验室_log=l_数据框集合$df_随访_单因素_实验室_log
+df_差异作图=l_数据框集合$df_差异作图
+```
+
+
+
+
+# 基线数据, 贫血和不贫血人士的单因素分析
+```{r}
+comp_基线人口学比较 = 
+  twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
+        varlist = c(var_人口学, var_中药治疗, var_贫血结局[2]), 
+        skewvar = c("年龄", "bmi"), 
+        ShowStatistic = T, ExtractP = 0.2)
+
+comp_基线实验室检查比较 = 
+  twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
+        varlist = var_实验室检查_基线, 
+        skewvar = var_实验室检查_基线,
+        ShowStatistic = T, ExtractP = 0.2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
