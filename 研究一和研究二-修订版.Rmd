@@ -40,6 +40,9 @@ library(flextable)
 # export dataframe as excel file
 library("writexl")
 
+# 可解释性模型
+library("iml")
+
 ```
 
 
@@ -88,46 +91,284 @@ df_差异作图=l_数据框集合$df_差异作图
 # 基线数据, 贫血和不贫血人士的单因素分析
 ```{r}
 comp_基线人口学比较 = 
-  twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
+  twogrps(df_基线_随访_单因素_log[-1], var_贫血结局[1], 
         varlist = c(var_人口学, var_中药治疗, var_贫血结局[2]), 
-        skewvar = c("年龄", "bmi"), 
+        skewvar = c("年龄", "bmi", "kps"),
         ShowStatistic = T, ExtractP = 0.2)
 
 comp_基线实验室检查比较 = 
-  twogrps(df_grpcop_log[-1], "是否贫血(阈值100g)", 
-        varlist = var_实验室检查_基线, 
-        skewvar = var_实验室检查_基线,
+  twogrps(df_基线_随访_单因素_log[-1], var_贫血结局[1], 
+        varlist = c(var_实验室检查_基线, var_免疫指标), 
+        skewvar = c(var_实验室检查_基线, var_免疫指标),
         ShowStatistic = T, ExtractP = 0.2)
 ```
 
+以0.2为阈值, 提取变量, 可以看到年龄和kps是显著的, 然后基线的hb和改善的方向有关系. 
+另一方面, 他们选择是否接受中医治疗是有倾向的. 
+mcv和mch高度相关, 取一个, 然后淋巴细胞绝对值加入多因素模型.
+
+**更新: ** "CD3CD4" 也是显著的因素
+```{r}
+comp_基线人口学比较$VarExtract %>% print()
+
+comp_基线实验室检查比较$VarExtract %>% print()
+```
+
+先考虑只有年龄和kps, mcv, 淋巴细胞绝对值
+```{r}
+fit_基线多因素_1 = 
+  glm(基线是否贫血 ~ 年龄 + kps + mcv + 淋巴细胞绝对值 + CD3CD4, 
+    data = df_基线_多因素_log, family = binomial())
+ 
+summary.glm(fit_基线多因素_1)  #展示拟合回归的简单统计
+# fit_基线多因素_1 %>% get_glm_OR(1:5) %>% print
+```
+
+加上用药时间
+```{r}
+fit_基线多因素_2 = 
+  glm(基线是否贫血 ~ 用药时间 + 年龄 + kps + mcv + 淋巴细胞绝对值 + CD3CD4, 
+    data = df_基线_多因素_log, family = binomial())
+ 
+summary.glm(fit_基线多因素_2)  #展示拟合回归的简单统计
+```
+
+加上了好像表现更好了
+```{r}
+t1 = fit_基线多因素_1 %>% tbl_regression(exponentiate = TRUE)
+t2 = fit_基线多因素_2 %>% tbl_regression(exponentiate = TRUE)
+```
 
 
+制作结果的表格
+```{r}
+tbl_merge_基线多因素分析 =
+  tbl_merge(
+    tbls = list(t1, t2),
+    tab_spanner = c("**不纳入'用药时间'**", "**纳入'用药时间'**")
+  ) %>% modify_caption("**构建两个嵌套的logistics回归模型**")
+
+tbl_merge_基线多因素分析
+```
+
+将输出结果保存到report目录下的输出里面
+```{r}
+tbl_merge_基线多因素分析 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path="report/code_outputs/tbl_merge_基线多因素分析.docx")
+```
 
 
+# 研究2: 考察三分类的情况
+
+单因素分析, 先考察人口学情况和基线的贫血hb
+```{r}
+  comp_随访人口学比较 = 
+  multigrps(df_基线_随访_单因素_log[-1], var_贫血结局[2], 
+          varlist = c(var_人口学, var_中药治疗, var_贫血结局[1], "血红蛋白"), 
+          skewvar = c("年龄", "bmi", "kps", "血红蛋白"), 
+          ShowStatistic = T)
+
+```
+
+打印出来看看结果
+```{r}
+comp_随访人口学比较 %>% print()
+```
 
 
+# 随访的实验室检查, 免疫指标, hb的变量之差
+
+做表: 
+单因素分析
+```{r}
+  comp_随访实验室检查比较 = 
+  multigrps(df_随访_单因素_实验室_log[-1], var_贫血结局[2], 
+          varlist = var_实验室检查_差异, 
+          skewvar = var_实验室检查_差异,
+          ShowStatistic = T)
+
+```
 
 
+```{r}
+comp_随访实验室检查比较 %>% print()
+```
+
+```{r}
+  comp_随访免疫指标比较 = 
+  multigrps(df_随访_单因素_实验室_log[-1], var_贫血结局[2], 
+          varlist = var_免疫指标变化, 
+          skewvar = var_免疫指标变化,
+          ShowStatistic = T)
+
+```
 
 
+```{r}
+comp_随访免疫指标比较 %>% print()
+```
+
+血红蛋白的变化先放在一边
+
+# 作图
+画一个图做试验
+```{r}
+my_comparisons = 
+  list(c("Hb下降组", "Hb不变组"), c("Hb不变组", "Hb上升组"), c("Hb下降组", "Hb上升组"))
+
+p_test =
+  ggline(df_差异作图, 
+      x = "随访贫血是否改善",
+      y = 'CRP差异',
+      # combine = TRUE,
+      ylab = "差异", 
+      
+      color = "gray",                                     # Line color
+      add = c("mean_sd", "violin", "jitter"),                     
+      add.params = list(color = "随访贫血是否改善"),
+      palette = "jco"
+      )+ 
+  stat_compare_means(method = 'wilcox.test', comparisons = my_comparisons) +
+ggtitle(paste0("比较三组中", 'CRP差异'))  # Add pairwise comparisons p-value
+  # stat_compare_means(label.y = 5)  
+```
 
 
+```{r}
+plot_items_cop = 
+  function(df_d, group, var_set, my_comparisons = 
+  list(c("Hb下降组", "Hb不变组"), c("Hb不变组", "Hb上升组"), c("Hb下降组", "Hb上升组")), y_lab="差异 (log)") {
+    l_p = vector()  
+    for(i in 1:length(var_set) ) {
+        var_y = var_set[i]
+        p_i =
+          ggline(df_d, x = group, y = var_y,
+          # combine = TRUE,
+          ylab = y_lab, 
+          color = "gray",                                     # Line color
+          add = c("mean_sd", "violin", "jitter"),                     
+          add.params = list(color = group),
+           palette = "jco"
+         ) +  
+         stat_compare_means(method = 'wilcox.test', comparisons = my_comparisons) + 
+          ggtitle(paste0("比较三组中", var_y))
+    # 这个print的函数很重要哈
+    print(p_i)   
+    }
+    # return(l_p)
+   } 
+
+```
 
 
+作循环的图片
+```{r}
+par(mfrow=c(3,3))
+p = plot_items_cop(df_差异作图, var_贫血结局[2], var_实验室检查_差异 )
+
+```
+
+```{r}
+par(mfrow=c(3,3))
+p = plot_items_cop(df_差异作图, var_贫血结局[2], var_免疫指标变化 )
+
+```
 
 
+# 截至16号, 需要保存的表格
+
+-研究一的单因素分析表格
+
+--包括人口学和临床相关的变量, 因此两个表格
+
+-研究一的多因素分析的OR值
+
+-研究二人口学特征表格
+
+-研究二实验室变量比较结果
+
+```{r}
+df_基线人口学比较结果 = comp_基线人口学比较$Table
+df_基线实验室检查比较结果 = comp_基线实验室检查比较$Table
+
+## 研究一的多因素分析表格已经给出为docx
+
+df_随访人口学比较结果 = comp_随访人口学比较
+df_随访实验室检查比较结果 = comp_随访实验室检查比较
+
+df_随访免疫指标比较结果 = comp_随访免疫指标比较
+```
+
+将表格保存为文件
+```{r}
+write_xlsx(df_基线人口学比较结果,"report/code_outputs/df_基线人口学比较结果.xlsx")
+write_xlsx(df_基线实验室检查比较结果,"report/code_outputs/df_基线实验室检查比较结果.xlsx")
+write_xlsx(df_随访人口学比较结果,"report/code_outputs/df_随访人口学比较结果.xlsx")
+write_xlsx(df_随访免疫指标比较结果, "report/code_outputs/df_随访免疫指标比较结果.xlsx")
+write_xlsx(df_随访实验室检查比较结果,"report/code_outputs/df_随访实验室检查比较结果.xlsx")
+
+```
 
 
+# 画随机森林图
+
+随机森林模型, 送什么样的数据框进去呢?
+```{r}
+var_实验室检查_差异 %>% print()
+var_免疫指标变化 %>% print()
+```
+
+```{r}
+rf_自变量_公式 = paste0(c(var_实验室检查_差异,var_免疫指标变化), collapse=" + ")
+
+rf_随访贫血是否改善_公式 = paste("随访贫血是否改善 ~ ", rf_自变量_公式,sep = "") %>% as.formula
+```
+
+把公式准备好
+```{r}
+rf_随访贫血是否改善_公式
+```
+
+送进去随机森林模型里面
+```{r}
+set.seed(42)
+
+rf_随访贫血是否改善 = randomForest(
+  rf_随访贫血是否改善_公式,
+  data = df_差异作图, ntree = 50
+)
+
+```
 
 
+重要性图
+```{r}
+# 预测
+
+X_随访贫血 = df_差异作图[,c(var_实验室检查_差异,var_免疫指标变化)]
+predictor_随访贫血 = 
+  Predictor$new(rf_随访贫血是否改, data = X_随访贫血, y = df_差异作图$随访贫血是否改善)
+```
+
+特征重要性
+
+```{r}
+importance(rf_随访贫血是否改善) 
+
+```
+
+```{r}
+varImpPlot(rf_随访贫血是否改善, main="随访贫血是否改善的特征重要性排序")
+```
 
 
+<!-- ```{r} -->
+<!-- imp_贫血 = FeatureImp$new(predictor_随访贫血, loss = "ce") -->
+<!-- # library("ggplot2") -->
+<!-- plot(imp_贫血) -->
 
-
-
-
-
-
+<!-- ``` -->
 
 
 

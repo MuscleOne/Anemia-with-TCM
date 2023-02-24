@@ -1,0 +1,73 @@
+---
+title: "研究二随机森林图"
+output: html_document
+date: "2023-02-23"
+---
+
+# 读入原始数据
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load useful packages
+```{r}
+# load the useful packages
+library(dplyr)
+library(plotly)
+library(CBCgrps)
+library(networkD3)
+
+library(PerformanceAnalytics)
+
+##randomForest 包的随机森林
+library(randomForest)
+
+#使用 MASS 包 polr() 训练序数 logistic 回归，详情 ?polr
+library(MASS)
+
+library("ggpubr")
+library(car)
+library(multcomp)
+
+# 回归分析表格数据!
+# install.packages("gtsummary")
+library("gtsummary")
+
+# remotes::install_github("rstudio/gt", ref = gtsummary::gt_sha)
+# install.packages('flextable')
+library(flextable)
+
+# export dataframe as excel file
+library("writexl")
+
+```
+
+# 随机森林准备数据框
+这个数据框是包括了什么样的数据呢？
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
